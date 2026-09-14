@@ -3,14 +3,16 @@ import React from 'react';
 import {
   Card, Colors, Incubator, Switch, Text, View, RadioGroup, RadioButton, SkeletonView,
 } from 'react-native-ui-lib';
-import { StyleSheet, useColorScheme } from 'react-native';
-import { CHROME } from '../../../../../core/theme/chrome';
+import { StyleSheet } from 'react-native';
 import { EditSimpleCardProps } from './index';
 import {
   cpuValidator,
   maxThreadsHintValidator, priorityValidator,
 } from '../../../../../core/utils/validators';
 import { RandomXMode } from '../../../../../core/settings/settings.interface';
+import { tokens, textFieldDefaults } from '../../../../../core/theme/tokens';
+
+const radioLabelStyle = { color: tokens.text.primary };
 
 export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
   { setLocalState, localState },
@@ -25,12 +27,10 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
     );
   }, [localState.properties]);
 
-  const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
-
   return (
     <Card
       enableShadow
-      backgroundColor={chrome.cardBG}
+      backgroundColor={tokens.bg.surface}
       selected={!valid}
       selectionOptions={{
         hideIndicator: true,
@@ -41,14 +41,14 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
         <Card.Section
           style={{ flexShrink: 1 }}
           content={[
-            { text: 'CPU', text65: true, $textDefault: true },
+            { text: 'CPU', text65: true, color: tokens.text.primary },
           ]}
         />
       </View>
       <View spread padding-20 paddingT-10>
         <View marginB-10>
           <View row flex>
-            <Text text80 $textNeutralLight flex column marginB-5>Yield</Text>
+            <Text text80 color={tokens.text.secondary} flex column marginB-5>Yield</Text>
             <Switch
               value={localState.properties?.cpu?.yield}
               onValueChange={(value) => setLocalState((oldState) => merge(
@@ -63,14 +63,14 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
               ))}
             />
           </View>
-          <Text text100 $textNeutralLight row>
+          <Text text100 color={tokens.text.secondary} row>
             Prefer system better system response/stability `ON` (default value)
             or maximum hashrate `OFF`.
           </Text>
         </View>
         <View flex paddingT-10>
           <View marginB-10>
-            <Text text80 $textNeutralLight flex row marginB-2>RandomX Mode</Text>
+            <Text text80 color={tokens.text.secondary} flex row marginB-2>RandomX Mode</Text>
             <RadioGroup
               onValueChange={(value: RandomXMode) => setLocalState((oldState) => merge(
                 oldState,
@@ -86,12 +86,27 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
               marginB-5
             >
               <View row spread>
-                <RadioButton label="Auto" value={RandomXMode.AUTO} />
-                <RadioButton label="Fast" value={RandomXMode.FAST} />
-                <RadioButton label="Light" value={RandomXMode.LIGHT} />
+                <RadioButton
+                  label="Auto"
+                  value={RandomXMode.AUTO}
+                  color={tokens.accent}
+                  labelStyle={radioLabelStyle}
+                />
+                <RadioButton
+                  label="Fast"
+                  value={RandomXMode.FAST}
+                  color={tokens.accent}
+                  labelStyle={radioLabelStyle}
+                />
+                <RadioButton
+                  label="Light"
+                  value={RandomXMode.LIGHT}
+                  color={tokens.accent}
+                  labelStyle={radioLabelStyle}
+                />
               </View>
             </RadioGroup>
-            <Text text100 $textNeutralLight row>
+            <Text text100 color={tokens.text.secondary} row>
               RandomX mining mode: "auto", "fast" (2 GB memory),
               "light" (256 MB memory).
             </Text>
@@ -130,8 +145,10 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
             fieldStyle={styles.withUnderline}
             hint="1 - 5"
             keyboardType="numeric"
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...textFieldDefaults}
           />
-          <Text text100 $textNeutralLight row>
+          <Text text100 color={tokens.text.secondary} row>
             Threads priority, from 1 (lowest) to 5 (highest).
             Default: null - doesn't change priority.
           </Text>
@@ -169,9 +186,11 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
             fieldStyle={styles.withUnderline}
             hint="50"
             keyboardType="numeric"
-            trailingAccessory={<Text>% of device cores</Text>}
+            trailingAccessory={<Text color={tokens.text.secondary}>% of device cores</Text>}
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...textFieldDefaults}
           />
-          <Text text100 $textNeutralLight row>
+          <Text text100 color={tokens.text.secondary} row>
             For 1 core CPU this option has no effect,
             for 2 core CPU only 2 values possible 50% and 100%,
             for 4 cores: 25%, 50%, 75%, 100%. etc.
@@ -185,7 +204,7 @@ export const EditSimpleCPUCard: React.FC<EditSimpleCardProps> = (
 const styles = StyleSheet.create({
   withUnderline: {
     borderBottomWidth: 1,
-    borderColor: Colors.$outlineDisabled,
+    borderColor: tokens.border.subtle,
     paddingBottom: 4,
   },
 });
