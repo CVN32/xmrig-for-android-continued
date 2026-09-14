@@ -56,22 +56,20 @@ public class MainActivity extends ReactActivity {
     }
   }
 
-  /** Opaque light chrome so content is not drawn under translucent bars (invisible UI on Android 12+). */
+  /** Opaque dark chrome matching tokens.bg.app — no white gesture-nav / window strip. */
   private void applyOpaqueSystemBars() {
     Window window = getWindow();
-    final int chrome = Color.parseColor("#FFF5F5F5");
+    final int chrome = Color.parseColor("#FF0F1115");
     window.setStatusBarColor(chrome);
     window.setNavigationBarColor(chrome);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       View decor = window.getDecorView();
       int flags = decor.getSystemUiVisibility();
-      flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-      decor.setSystemUiVisibility(flags);
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      View decor = window.getDecorView();
-      int flags = decor.getSystemUiVisibility();
-      flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+      // Dark bars → clear light-* flags so icons stay light.
+      flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+      }
       decor.setSystemUiVisibility(flags);
     }
   }
