@@ -1,6 +1,6 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, sharedStyles } from '.';
+import { IPool, poolFieldProps, sharedStyles } from '.';
 
 const hostname = 'xmr.hashcity.org';
 const port = 4444;
@@ -31,6 +31,8 @@ export const Hashcity:React.FC<IPool> = ({ onChange }) => {
         maxLength={128}
         fieldStyle={sharedStyles.withUnderline}
         marginB-10
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
       <Incubator.TextField
         label="Worker Name"
@@ -42,6 +44,8 @@ export const Hashcity:React.FC<IPool> = ({ onChange }) => {
         fieldStyle={sharedStyles.withUnderline}
         hint="Worker1"
         placeholder="Worker1"
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
     </>
   );
