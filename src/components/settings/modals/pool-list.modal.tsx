@@ -1,12 +1,18 @@
 import _ from 'lodash';
 import React from 'react';
-import { ScrollView } from 'react-native';
+import { Dimensions, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button, Chip, Incubator, Picker, Typography, View,
 } from 'react-native-ui-lib';
 import { IConfiguratioPropertiesPool } from '../../../core/settings/settings.interface';
 import { sheetBg, tokens } from '../../../core/theme/tokens';
+import {
+  formatPoolStatusChip,
+  PoolProbeResult,
+  probePool,
+} from '../../../core/pools/pool-status';
+import { rememberWallet } from '../../../core/pools/recent-wallets';
 import {
   C3Pool,
   Hashcity,
@@ -28,15 +34,28 @@ export type PoolListModalProps = Incubator.DialogProps & {
   onAdd: (pool: IConfiguratioPropertiesPool) => void;
 }
 
+const FOOTER_BASE = 56;
+const HEADER_APPROX = 52;
+const PROBE_INTERVAL_MS = 20000;
+
 const PoolListModal:React.FC<PoolListModalProps> = (
   {
     onAdd,
     onDismiss,
+    visible,
     ...rest
   },
 ) => {
   const insets = useSafeAreaInsets();
   const footerBottomInset = Math.max(insets.bottom, tokens.spacing.sm);
+  const footerHeight = FOOTER_BASE + footerBottomInset;
+
+  const dialogHeight = React.useMemo(() => {
+    const winH = Dimensions.get('window').height;
+    return Math.min(Math.round(winH * 0.85), 640);
+  }, []);
+
+  const bodyMaxHeight = Math.max(180, dialogHeight - HEADER_APPROX - footerHeight);
 
   const [selected, setSelected] = React.useState<string>();
   const [pool, setPool] = React.useState<IConfiguratioPropertiesPool>({
@@ -46,6 +65,8 @@ const PoolListModal:React.FC<PoolListModalProps> = (
     password: '',
     sslEnabled: false,
   });
+
+  const [statusMap, setStatusMap] = React.useState<Record<string, PoolProbeResult>>({});
 
   const onChange = React.useCallback(
     (state: IPoolState) => setPool({
@@ -59,13 +80,73 @@ const PoolListModal:React.FC<PoolListModalProps> = (
   );
 
   const pools = React.useMemo<IPredefinedPool[]>(() => predefinedPoolsList, []);
-  const poolInfo = React.useMemo<IPredefinedPoolInfo>(
-    () => predefinedPools[selected as PredefinedPoolName],
+  const poolInfo = React.useMemo<IPredefinedPoolInfo | undefined>(
+    () => (selected ? predefinedPools[selected as PredefinedPoolName] : undefined),
     [selected],
   );
 
-  const hide = (isOk: boolean = false) => {
+  React.useEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+    let cancelled = false;
+
+    const run = async () => {
+      const targets = pools.map((p) => ({
+        key: p.name,
+        hostname: p.info.hostname,
+        port: p.info.port,
+      }));
+      const ordered = selected
+        ? [
+          ...targets.filter((t) => t.key === selected),
+          ...targets.filter((t) => t.key !== selected),
+        ]
+        : targets;
+
+      for (let i = 0; i < ordered.length; i += 1) {
+        if (cancelled) {
+          return;
+        }
+        const t = ordered[i];
+        // eslint-disable-next-line no-await-in-loop
+        const result = await probePool(t.hostname, t.port);
+        if (cancelled) {
+          return;
+        }
+        setStatusMap((prev) => {
+          const prevResult = prev[t.key];
+          if (
+            prevResult
+            && prevResult.online === result.online
+            && prevResult.latencyMs === result.latencyMs
+          ) {
+            return prev;
+          }
+          return { ...prev, [t.key]: result };
+        });
+      }
+    };
+
+    run();
+    const id = setInterval(run, PROBE_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [visible, pools, selected]);
+
+  const selectedStatus = selected ? statusMap[selected] : undefined;
+  const statusLabel = React.useMemo(
+    () => formatPoolStatusChip(selectedStatus),
+    [selectedStatus],
+  );
+
+  const hide = async (isOk: boolean = false) => {
     if (isOk === true) {
+      if (pool.username) {
+        await rememberWallet(pool.username);
+      }
       onAdd(pool);
     }
     if (onDismiss) {
@@ -76,6 +157,7 @@ const PoolListModal:React.FC<PoolListModalProps> = (
   return (
     <Incubator.Dialog
       onDismiss={onDismiss}
+      visible={visible}
       center
       headerProps={{
         text: {
@@ -90,20 +172,26 @@ const PoolListModal:React.FC<PoolListModalProps> = (
       containerStyle={{
         width: '90%',
         maxWidth: 420,
-        maxHeight: '85%',
+        height: dialogHeight,
         backgroundColor: sheetBg,
         borderRadius: 12,
         overflow: 'hidden',
+        flexDirection: 'column',
       }}
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...rest}
     >
-      <View style={{ backgroundColor: sheetBg, maxHeight: '100%' }}>
-        {/* Scrollable body — preset picker + custom fields */}
+      <View
+        style={{
+          backgroundColor: sheetBg,
+          height: dialogHeight - HEADER_APPROX,
+          flexDirection: 'column',
+        }}
+      >
         <ScrollView
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
-          style={{ maxHeight: 420 }}
+          style={{ flexGrow: 1, flexShrink: 1, maxHeight: bodyMaxHeight }}
           contentContainerStyle={{
             paddingHorizontal: tokens.spacing.lg,
             paddingTop: tokens.spacing.sm,
@@ -112,7 +200,7 @@ const PoolListModal:React.FC<PoolListModalProps> = (
         >
           <View height={50} paddingT-10>
             <Picker
-              floatingPlaceholder={selected === null}
+              floatingPlaceholder={selected == null}
               placeholder="Select a Pool"
               topBarProps={{ title: 'Pools' }}
               value={selected}
@@ -139,25 +227,43 @@ const PoolListModal:React.FC<PoolListModalProps> = (
           </View>
 
           {poolInfo && (
-            <View row paddingB-10 spread>
+            <View row paddingB-10 style={{ flexWrap: 'wrap' }}>
               <Chip
                 size={10}
                 label={`${poolInfo.fee}% fee`}
+                marginR-8
+                marginB-6
                 labelStyle={{ color: tokens.text.primary }}
                 containerStyle={{ borderColor: tokens.border.subtle }}
               />
               <Chip
                 size={10}
                 label={`${poolInfo.threshold} min. payout`}
-                marginH-10
+                marginR-8
+                marginB-6
                 labelStyle={{ color: tokens.text.primary }}
                 containerStyle={{ borderColor: tokens.border.subtle }}
               />
               <Chip
                 size={10}
                 label={poolInfo.method}
+                marginR-8
+                marginB-6
                 labelStyle={{ color: tokens.text.primary }}
                 containerStyle={{ borderColor: tokens.border.subtle }}
+              />
+              <Chip
+                size={10}
+                label={statusLabel}
+                marginB-6
+                labelStyle={{
+                  color: selectedStatus?.online ? tokens.success : tokens.text.secondary,
+                }}
+                containerStyle={{
+                  borderColor: selectedStatus?.online
+                    ? tokens.success
+                    : tokens.border.subtle,
+                }}
               />
             </View>
           )}
@@ -182,10 +288,11 @@ const PoolListModal:React.FC<PoolListModalProps> = (
           </View>
         </ScrollView>
 
-        {/* Fixed footer — Cancel + Apply always visible */}
         <View
           style={{
-            height: 56 + footerBottomInset,
+            height: footerHeight,
+            flexGrow: 0,
+            flexShrink: 0,
             paddingBottom: footerBottomInset,
             paddingHorizontal: tokens.spacing.lg,
             borderTopWidth: 1,
@@ -205,7 +312,7 @@ const PoolListModal:React.FC<PoolListModalProps> = (
             size={Button.sizes.medium}
           />
           <Button
-            onPress={() => hide(true)}
+            onPress={() => { hide(true); }}
             label="Apply"
             backgroundColor={tokens.accent}
             size={Button.sizes.medium}

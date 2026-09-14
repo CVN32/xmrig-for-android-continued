@@ -34,3 +34,17 @@ export const tokens = {
 
 /** Alias: sheets/modals always use elevated, never white. */
 export const sheetBg = tokens.bg.elevated;
+
+/**
+ * Spread onto Incubator.TextField for high-contrast typed value +
+ * floating placeholder on dark surfaces (app-wide default).
+ */
+export const textFieldDefaults = {
+  color: tokens.text.primary,
+  labelColor: tokens.text.secondary,
+  placeholderTextColor: tokens.text.disabled,
+  floatingPlaceholderColor: {
+    default: tokens.text.secondary,
+    focus: tokens.accent,
+  },
+};

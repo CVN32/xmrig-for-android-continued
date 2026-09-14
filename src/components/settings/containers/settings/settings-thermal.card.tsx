@@ -5,6 +5,7 @@ import {
 import { useDebouncedCallback } from 'use-debounce';
 import { SettingsCardProps } from '.';
 import { IThermalSettings } from '../../../../core/settings/settings.interface';
+import { tokens } from '../../../../core/theme/tokens';
 
 const SettingsThermalCard:React.FC<SettingsCardProps<IThermalSettings>> = ({
   settings,
@@ -13,23 +14,31 @@ const SettingsThermalCard:React.FC<SettingsCardProps<IThermalSettings>> = ({
   const debouncedUpdate = useDebouncedCallback(onUpdate, 1000);
 
   return (
-    <Card enableShadow>
+    <Card enableShadow backgroundColor={tokens.bg.surface}>
       <View centerV spread padding-20 paddingB-5>
         <Card.Section
           style={{ flexShrink: 1 }}
           content={[
-            { text: 'Thermal', text65: true, $textDefault: true },
-            { text: 'Pause / Resume mining based on CPU Temperature to prevent overheating.', text90: true, $textNeutral: true },
+            {
+              text: 'Thermal',
+              text65: true,
+              color: tokens.text.primary,
+            },
+            {
+              text: 'Pause / Resume mining based on CPU Temperature to prevent overheating.',
+              text90: true,
+              color: tokens.text.secondary,
+            },
           ]}
         />
       </View>
       <View spread padding-20 paddingT-10>
         <View marginB-10>
           <View flex marginB-5>
-            <Text text75 $textDefault flex column row>Pause mining on</Text>
+            <Text text75 color={tokens.text.primary} flex column row>Pause mining on</Text>
           </View>
           <View row flex paddingL-10>
-            <Text text80 $textNeutralLight flex column marginB-5>CPU is Over Heated</Text>
+            <Text text80 color={tokens.text.secondary} flex column marginB-5>CPU is Over Heated</Text>
             <Switch
               value={settings.pauseOnCPUTemperatureOverHeat}
               onValueChange={(value) => onUpdate({ pauseOnCPUTemperatureOverHeat: value })}
@@ -37,7 +46,7 @@ const SettingsThermalCard:React.FC<SettingsCardProps<IThermalSettings>> = ({
           </View>
           {settings.pauseOnCPUTemperatureOverHeat && (
             <View row flex paddingL-10 centerV>
-              <Text text80 $textNeutralLight flex column marginB-5>Temperature</Text>
+              <Text text80 color={tokens.text.secondary} flex column marginB-5>Temperature</Text>
               <Slider
                 containerStyle={{ flex: 1 }}
                 minimumValue={10}
@@ -49,7 +58,7 @@ const SettingsThermalCard:React.FC<SettingsCardProps<IThermalSettings>> = ({
                 }
                 disabled={!settings.pauseOnCPUTemperatureOverHeat}
               />
-              <Text marginL-10>
+              <Text marginL-10 color={tokens.text.primary}>
                 {`0${settings.pauseOnCPUTemperatureOverHeatValue}`.slice(-3)}
                 {' ℃'}
               </Text>
@@ -58,10 +67,10 @@ const SettingsThermalCard:React.FC<SettingsCardProps<IThermalSettings>> = ({
         </View>
         <View marginB-10>
           <View flex marginB-5>
-            <Text text75 $textDefault flex column row>Resume mining on</Text>
+            <Text text75 color={tokens.text.primary} flex column row>Resume mining on</Text>
           </View>
           <View row flex paddingL-10>
-            <Text text80 $textNeutralLight flex column marginB-5>CPU Temp is Normal</Text>
+            <Text text80 color={tokens.text.secondary} flex column marginB-5>CPU Temp is Normal</Text>
             <Switch
               value={settings.resumeCPUTemperatureNormal}
               onValueChange={(value) => onUpdate({ resumeCPUTemperatureNormal: value })}
@@ -69,7 +78,7 @@ const SettingsThermalCard:React.FC<SettingsCardProps<IThermalSettings>> = ({
           </View>
           {settings.resumeCPUTemperatureNormal && (
             <View row flex paddingL-10 centerV>
-              <Text text80 $textNeutralLight flex column marginB-5>Temperature</Text>
+              <Text text80 color={tokens.text.secondary} flex column marginB-5>Temperature</Text>
               <Slider
                 containerStyle={{ flex: 1 }}
                 minimumValue={10}
@@ -81,7 +90,7 @@ const SettingsThermalCard:React.FC<SettingsCardProps<IThermalSettings>> = ({
                 }
                 disabled={!settings.resumeCPUTemperatureNormal}
               />
-              <Text marginL-10>
+              <Text marginL-10 color={tokens.text.primary}>
                 {`0${settings.resumeCPUTemperatureNormalValue}`.slice(-3)}
                 {' ℃'}
               </Text>

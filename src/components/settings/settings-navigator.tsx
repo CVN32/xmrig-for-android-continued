@@ -3,7 +3,7 @@ import {
   TabController,
   View,
 } from 'react-native-ui-lib';
-import { ViewProps, useColorScheme } from 'react-native';
+import { ViewProps } from 'react-native';
 import { CHROME } from '../../core/theme/chrome';
 import { LazyLoader } from '../core/lazy-loader';
 
@@ -18,7 +18,7 @@ const LazySettingsScreen = () => (<LazyLoader><SettingsScreen /></LazyLoader>);
  * app-level bottom tabs (Miner | Log | Settings).
  */
 export const TabNavigator: React.FC<ViewProps> = () => {
-  const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
+  const chrome = CHROME.dark;
   return (
     <TabController items={[{ label: 'Configurations' }, { label: 'Settings' }]}>
       <View
@@ -36,7 +36,7 @@ export const TabNavigator: React.FC<ViewProps> = () => {
           selectedLabelColor={chrome.textColor}
         />
       </View>
-      <View flex>
+      <View flex backgroundColor={chrome.screenBG}>
         <TabController.TabPage index={0}><LazyConfigurationsScreen /></TabController.TabPage>
         <TabController.TabPage index={1} lazy><LazySettingsScreen /></TabController.TabPage>
       </View>
