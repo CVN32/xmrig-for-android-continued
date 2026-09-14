@@ -1,6 +1,6 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, sharedStyles } from '.';
+import { IPool, poolFieldProps, sharedStyles } from '.';
 import { validateWalletAddress } from '../../../../core/utils';
 
 const hostname = 'pool.hashvault.pro';
@@ -38,6 +38,8 @@ export const HashVault:React.FC<IPool> = ({ onChange }) => {
         marginB-10
         numberOfLines={1}
         textBreakStrategy="simple"
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
       <Incubator.TextField
         label="Worker Name"
@@ -49,6 +51,8 @@ export const HashVault:React.FC<IPool> = ({ onChange }) => {
         fieldStyle={sharedStyles.withUnderline}
         hint="Worker1"
         placeholder="Worker1"
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
     </>
   );

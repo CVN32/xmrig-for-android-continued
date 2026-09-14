@@ -1,7 +1,12 @@
 import React from 'react';
 import { ViewProps } from 'react-native-ui-lib';
-import { TabNavigator } from './miner-navigator';
+import { LazyLoader } from '../core/lazy-loader';
 
-export const MinerView:React.FC<ViewProps> = () => <TabNavigator />;
+const MinerScreen = React.lazy(() => import('./screens/advanced/miner.screen'));
+
+/** Miner tab content only — Log/Settings are siblings in AppNavigator. */
+export const MinerView: React.FC<ViewProps> = () => (
+  <LazyLoader><MinerScreen /></LazyLoader>
+);
 
 export default MinerView;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, sharedStyles } from '.';
+import { IPool, poolFieldProps, sharedStyles } from '.';
 import { validateWalletAddress } from '../../../../core/utils';
 
 const hostname = 'pool.minexmr.com';
@@ -38,6 +38,8 @@ export const MineXMR:React.FC<IPool> = ({ onChange }) => {
         marginB-10
         numberOfLines={1}
         textBreakStrategy="simple"
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
       <Incubator.TextField
         label="Fixed Difficulty"
@@ -50,6 +52,8 @@ export const MineXMR:React.FC<IPool> = ({ onChange }) => {
         hint="128000"
         placeholder="128000"
         keyboardType="numeric"
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
     </>
   );

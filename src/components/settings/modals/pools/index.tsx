@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Colors } from 'react-native-ui-lib';
+import { tokens } from '../../../../core/theme/tokens';
 
 export type IPoolState = {
     hostname: string;
@@ -104,10 +104,18 @@ export {
   Hashcity,
 } from './hashcity';
 
+/** Readable text/underline on dark elevated sheet (never light-gray-on-white). */
 export const sharedStyles = StyleSheet.create({
   withUnderline: {
     borderBottomWidth: 1,
-    borderColor: Colors.$outlineDisabled,
+    borderColor: tokens.border.subtle,
     paddingBottom: 4,
   },
 });
+
+/** Spread onto Incubator.TextField inside pool preset forms. */
+export const poolFieldProps = {
+  color: tokens.text.primary,
+  labelColor: tokens.text.secondary,
+  placeholderTextColor: tokens.text.disabled,
+};

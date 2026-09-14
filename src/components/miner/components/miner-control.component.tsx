@@ -24,7 +24,9 @@ import { CHROME } from '../../../core/theme/chrome';
 import AddConfigurationsModal from '../../settings/modals/add-configuration.modal';
 import { ConfigurationMode } from '../../../core/settings/settings.interface';
 
-export const MinerControl:React.FC<ViewProps> = () => {
+const TOUCH_MIN = 48;
+
+export const MinerControl: React.FC<ViewProps> = () => {
   const toaster = useToaster();
   const navigation = useNavigation<any>();
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
@@ -50,13 +52,11 @@ export const MinerControl:React.FC<ViewProps> = () => {
       if (configsEmpty) {
         toaster({
           message: 'Add a configuration first',
-          position: 'top',
           preset: Incubator.ToastPresets.FAILURE,
         });
       } else {
         toaster({
           message: 'Select a configuration to start',
-          position: 'top',
           preset: Incubator.ToastPresets.FAILURE,
         });
       }
@@ -91,7 +91,6 @@ export const MinerControl:React.FC<ViewProps> = () => {
     setShowAddModal(false);
     toaster({
       message: `Added '${name}'`,
-      position: 'top',
       preset: Incubator.ToastPresets.SUCCESS,
     });
     navigation.navigate('Configuration', { id });
@@ -130,7 +129,7 @@ export const MinerControl:React.FC<ViewProps> = () => {
         }}
         containerStyle={{
           overflow: 'hidden',
-          borderRadius: 12,
+          borderRadius: chrome.radius,
         }}
       >
         {workingState === WorkingState.NOT_WORKING && configsEmpty && (
@@ -140,8 +139,9 @@ export const MinerControl:React.FC<ViewProps> = () => {
               Add a profile to pick a pool and wallet, then you can start mining here.
             </Text>
             <Button
-              size={Button.sizes.medium}
+              size={Button.sizes.large}
               label="Add configuration"
+              style={{ minHeight: TOUCH_MIN }}
               iconSource={Assets.icons.clipboard}
               iconStyle={{
                 width: 14,
@@ -155,60 +155,65 @@ export const MinerControl:React.FC<ViewProps> = () => {
         )}
 
         {workingState === WorkingState.NOT_WORKING && !configsEmpty && (
-          <View row centerV padding-12>
-            <View flex marginR-10>
-              <Picker
-                floatingPlaceholder
-                placeholder={selectedConfiguration ? 'Selected configuration' : 'Select configuration'}
-                topBarProps={{ title: 'Configurations' }}
-                value={selectedConfiguration}
-                getLabel={
-                  (value) => settings.configurations.find((config) => config.id === value)?.name || 'N/A'
-                }
-                showSearch
-                searchPlaceholder="Search configurations"
-                onChange={(value: any) => setSelectedConfiguration(value)}
-                style={{ ...Typography.text70, color: Colors.$textDefault }}
-                floatingPlaceholderStyle={{ ...Typography.text80, color: Colors.$textNeutral }}
-                migrate
-                migrateTextField
-              >
-                {_.map(settings.configurations, (item) => (
-                  <Picker.Item
-                    key={item?.id}
-                    value={item?.id || ''}
-                    label={item?.name}
-                  />
-                ))}
-              </Picker>
+          <View padding-12>
+            <Picker
+              floatingPlaceholder
+              placeholder={selectedConfiguration ? 'Selected configuration' : 'Select configuration'}
+              topBarProps={{ title: 'Configurations' }}
+              value={selectedConfiguration}
+              getLabel={
+                (value) => settings.configurations.find((config) => config.id === value)?.name || 'N/A'
+              }
+              showSearch
+              searchPlaceholder="Search configurations"
+              onChange={(value: any) => setSelectedConfiguration(value)}
+              style={{ ...Typography.text70, color: Colors.$textDefault, minHeight: TOUCH_MIN }}
+              floatingPlaceholderStyle={{ ...Typography.text80, color: Colors.$textNeutral }}
+              migrate
+              migrateTextField
+            >
+              {_.map(settings.configurations, (item) => (
+                <Picker.Item
+                  key={item?.id}
+                  value={item?.id || ''}
+                  label={item?.name}
+                />
+              ))}
+            </Picker>
+            <View row marginT-12>
+              <Button
+                flex
+                outline
+                marginR-8
+                size={Button.sizes.large}
+                style={{ minHeight: TOUCH_MIN }}
+                label="Add"
+                onPress={() => setShowAddModal(true)}
+              />
+              <Button
+                flex
+                size={Button.sizes.large}
+                style={{ minHeight: TOUCH_MIN }}
+                onPress={handleStart}
+                label="Start"
+                iconSource={Assets.icons.start}
+                iconStyle={{
+                  width: 8,
+                  height: 10,
+                  margin: 5,
+                  marginRight: 10,
+                  tintColor: Colors.$iconDefaultLight,
+                }}
+              />
             </View>
-            <Button
-              size={Button.sizes.small}
-              outline
-              marginR-8
-              label="Add"
-              onPress={() => setShowAddModal(true)}
-            />
-            <Button
-              size={Button.sizes.small}
-              onPress={handleStart}
-              label="Start"
-              iconSource={Assets.icons.start}
-              iconStyle={{
-                width: 8,
-                height: 10,
-                margin: 5,
-                marginRight: 10,
-                tintColor: Colors.$iconDefaultLight,
-              }}
-            />
           </View>
         )}
 
         {isWorking && (
           <View padding-12>
             <Button
-              size={Button.sizes.medium}
+              size={Button.sizes.large}
+              style={{ minHeight: TOUCH_MIN }}
               backgroundColor={Colors.$backgroundDangerHeavy}
               onPress={handleStop}
               label="Stop"

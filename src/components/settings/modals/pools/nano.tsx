@@ -1,6 +1,6 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, sharedStyles } from '.';
+import { IPool, poolFieldProps, sharedStyles } from '.';
 import { validateWalletAddress } from '../../../../core/utils';
 
 const hostname = 'xmr-eu1.nanopool.org';
@@ -42,6 +42,8 @@ export const Nano:React.FC<IPool> = ({ onChange }) => {
         marginB-10
         numberOfLines={1}
         textBreakStrategy="simple"
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
       <Incubator.TextField
         label="Worker Name"
@@ -54,6 +56,8 @@ export const Nano:React.FC<IPool> = ({ onChange }) => {
         hint="Worker1"
         placeholder="Worker1"
         marginB-10
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
       <Incubator.TextField
         label="EMail"
@@ -66,6 +70,8 @@ export const Nano:React.FC<IPool> = ({ onChange }) => {
         hint="example@example.com"
         placeholder="example@example.com"
         keyboardType="email-address"
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...poolFieldProps}
       />
     </>
   );

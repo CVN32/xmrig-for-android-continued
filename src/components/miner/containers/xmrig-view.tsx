@@ -3,6 +3,7 @@ import {
   Dimensions,
   ScaledSize,
   StyleSheet,
+  useColorScheme,
 } from 'react-native';
 import _ from 'lodash';
 import prettyBytes from 'pretty-bytes';
@@ -15,6 +16,8 @@ import {
 import { IMinerSummary } from '../../../core/hooks';
 import { MinerCard } from '../components/miner-card.component';
 import { IHashrateHistory } from '../../../core/session-data/session-data.interface';
+import { CHROME } from '../../../core/theme/chrome';
+import { tokens } from '../../../core/theme/tokens';
 
 const screen = Dimensions.get('screen');
 
@@ -23,19 +26,20 @@ type SmallHashrateChartProps = {
 };
 
 type XMRigViewProps = ViewProps & {
-    hashrateHistory: IHashrateHistory;
-    minerData: IMinerSummary | null;
-    workingState: string;
-}
+  hashrateHistory: IHashrateHistory;
+  minerData: IMinerSummary | null;
+  workingState: string;
+};
 
-export const XMRigView:React.FC<XMRigViewProps> = ({
+/** Secondary stats for collapsible details — max 2 columns, lower chip density. */
+export const XMRigView: React.FC<XMRigViewProps> = ({
   hashrateHistory,
   minerData,
-  workingState,
 }) => {
+  const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
   const [dimensions, setDimensions] = React.useState<ScaledSize>({
     ...screen,
-    width: screen.width - 19,
+    width: screen.width - 40,
   });
 
   React.useEffect(() => {
@@ -44,7 +48,7 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
       ({ screen: _screen }) => {
         setDimensions({
           ..._screen,
-          width: _screen.width - 19,
+          width: _screen.width - 40,
         });
       },
     );
@@ -59,7 +63,7 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
           top: 10,
           bottom: 0,
         }}
-        height={100}
+        height={80}
         data={[0, ..._.takeRight(hashrateHistory.historyCurrent || [], 10), 0]}
         style={{
           data: {
@@ -74,12 +78,12 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
     </View>
   ), [hashrateHistory]);
 
-  const SmallHashrateChart:FC<SmallHashrateChartProps> = useCallback((
+  const SmallHashrateChart: FC<SmallHashrateChartProps> = useCallback((
     { hashrateHistoryData = [] },
   ) => (
     <View flex right>
       <VictoryChart
-        height={50}
+        height={44}
         width={100}
         padding={{
           top: 5,
@@ -128,25 +132,40 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
     </MinerCard>
   ), []);
 
+  const sectionTitleStyle = {
+    ...tokens.type.section,
+    color: chrome.textColor,
+  };
+
   const RenderCPUGrid = React.useCallback(() => (
     <GridView
       items={[
         {
           renderCustomItem: () => (
             <GridCard title="Brand" text={minerData?.cpu.brand || 'N/A'}>
-              <Card.Image source={Assets.icons.cpu} height={25} width={25} style={{ position: 'absolute', right: 10, top: 10 }} tintColor={Colors.$iconNeutral} />
+              <Card.Image
+                source={Assets.icons.cpu}
+                height={25}
+                width={25}
+                style={{ position: 'absolute', right: 10, top: 10 }}
+                tintColor={Colors.$iconNeutral}
+              />
             </GridCard>
           ),
         },
         {
           renderCustomItem: () => (
-            <GridCard title="Cores" text={minerData?.cpu.cores || 'N/A'}>
-              <Card.Image source={Assets.icons.cpuCore} height={25} width={25} style={{ position: 'absolute', right: 10, top: 10 }} tintColor={Colors.$iconNeutral} />
+            <GridCard title="Cores / Threads" text={`${minerData?.cpu.cores || 'N/A'} / ${minerData?.cpu.threads || 'N/A'}`}>
+              <Card.Image
+                source={Assets.icons.cpuCore}
+                height={25}
+                width={25}
+                style={{ position: 'absolute', right: 10, top: 10 }}
+                tintColor={Colors.$iconNeutral}
+              />
             </GridCard>
           ),
         },
-        { renderCustomItem: () => <GridCard title="Threads" text={minerData?.cpu.threads || 'N/A'} /> },
-        { renderCustomItem: () => <GridCard title="Arch" text={minerData?.cpu.arch || 'N/A'} /> },
       ]}
       viewWidth={dimensions.width}
       numColumns={2}
@@ -156,20 +175,19 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
   const RenderSharesGrid = React.useCallback(() => (
     <GridView
       items={[
-        { renderCustomItem: () => <GridCard title="Accepted" text={minerData?.connection.accepted || 0} /> },
-        { renderCustomItem: () => <GridCard title="Rejected" text={minerData?.connection.rejected || 0} /> },
-        { renderCustomItem: () => <GridCard title="Total" text={(minerData?.connection.accepted || 0) + (minerData?.connection.rejected || 0)} /> },
-      ]}
-      numColumns={3}
-      viewWidth={dimensions.width}
-    />
-  ), [minerData, dimensions.width]);
-
-  const RenderSharesMoreGrid = React.useCallback(() => (
-    <GridView
-      items={[
-        { renderCustomItem: () => <GridCard title="Difficulty" text={minerData?.results.diff_current || 'N/A'} /> },
-        { renderCustomItem: () => <GridCard title="Total Hashes" text={hashrateToString(minerData?.results.hashes_total || 0, true)} /> },
+        {
+          renderCustomItem: () => (
+            <GridCard title="Difficulty" text={minerData?.results.diff_current || 'N/A'} />
+          ),
+        },
+        {
+          renderCustomItem: () => (
+            <GridCard
+              title="Total Hashes"
+              text={hashrateToString(minerData?.results.hashes_total || 0, true)}
+            />
+          ),
+        },
       ]}
       numColumns={2}
       viewWidth={dimensions.width}
@@ -182,14 +200,29 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
         {
           renderCustomItem: () => (
             <GridCard title="Free Mem" text={prettyBytes(minerData?.resources.memory.free || 0)}>
-              <Card.Image source={Assets.icons.memory} height={25} width={28} style={{ position: 'absolute', right: 10, top: 10 }} tintColor={Colors.$iconNeutral} />
+              <Card.Image
+                source={Assets.icons.memory}
+                height={25}
+                width={28}
+                style={{ position: 'absolute', right: 10, top: 10 }}
+                tintColor={Colors.$iconNeutral}
+              />
             </GridCard>
           ),
         },
         {
           renderCustomItem: () => (
-            <GridCard title="Res. Mem" text={prettyBytes(minerData?.resources.memory.resident_set_memory || 0)}>
-              <Card.Image source={Assets.icons.memory} height={25} width={28} style={{ position: 'absolute', right: 10, top: 10 }} tintColor={Colors.$iconNeutral} />
+            <GridCard
+              title="Res. Mem"
+              text={prettyBytes(minerData?.resources.memory.resident_set_memory || 0)}
+            >
+              <Card.Image
+                source={Assets.icons.memory}
+                height={25}
+                width={28}
+                style={{ position: 'absolute', right: 10, top: 10 }}
+                tintColor={Colors.$iconNeutral}
+              />
             </GridCard>
           ),
         },
@@ -204,82 +237,58 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
       items={[
         {
           renderCustomItem: () => (
-            <GridHashrateCard title="10s" subTitle={`${hashrateToString(_.last(hashrateHistory.history10s) || 0, true)}/s`}>
-              <SmallHashrateChart
-                hashrateHistoryData={hashrateHistory.history10s}
-              />
+            <GridHashrateCard
+              title="10s"
+              subTitle={`${hashrateToString(_.last(hashrateHistory.history10s) || 0, true)}/s`}
+            >
+              <SmallHashrateChart hashrateHistoryData={hashrateHistory.history10s} />
             </GridHashrateCard>
           ),
         },
         {
           renderCustomItem: () => (
-            <GridHashrateCard title="60s" subTitle={`${hashrateToString(_.last(hashrateHistory.history60s) || 0, true)}/s`}>
-              <SmallHashrateChart
-                hashrateHistoryData={hashrateHistory.history60s}
-              />
+            <GridHashrateCard
+              title="60s"
+              subTitle={`${hashrateToString(_.last(hashrateHistory.history60s) || 0, true)}/s`}
+            >
+              <SmallHashrateChart hashrateHistoryData={hashrateHistory.history60s} />
             </GridHashrateCard>
           ),
         },
         {
           renderCustomItem: () => (
-            <GridHashrateCard title="15m" subTitle={`${hashrateToString(_.last(hashrateHistory.history15m) || 0, true)}/s`}>
-              <SmallHashrateChart
-                hashrateHistoryData={hashrateHistory.history15m}
-              />
+            <GridHashrateCard
+              title="15m"
+              subTitle={`${hashrateToString(_.last(hashrateHistory.history15m) || 0, true)}/s`}
+            >
+              <SmallHashrateChart hashrateHistoryData={hashrateHistory.history15m} />
             </GridHashrateCard>
           ),
         },
         {
           renderCustomItem: () => (
-            <GridHashrateCard title="max" subTitle={`${hashrateToString(_.last(hashrateHistory.historyMax) || 0, true)}/s`}>
-              <SmallHashrateChart
-                hashrateHistoryData={hashrateHistory.historyMax}
-              />
+            <GridHashrateCard
+              title="max"
+              subTitle={`${hashrateToString(_.last(hashrateHistory.historyMax) || 0, true)}/s`}
+            >
+              <SmallHashrateChart hashrateHistoryData={hashrateHistory.historyMax} />
             </GridHashrateCard>
-          ),
-        },
-      ]}
-      numColumns={4}
-      viewWidth={dimensions.width}
-    />
-  ), [minerData, dimensions.width]);
-
-  const RenderModeAlgoGrid = React.useCallback(() => (
-    <GridView
-      items={[
-        {
-          renderCustomItem: () => (
-            <GridCard title="Mode" text={workingState || 'N/A'}>
-              <Card.Image source={Assets.icons.working} height={30} width={30} style={{ position: 'absolute', right: 5, top: 5 }} tintColor={Colors.$iconNeutral} />
-            </GridCard>
-          ),
-        },
-        {
-          renderCustomItem: () => (
-            <GridCard title="Algo" text={minerData?.algo || 'N/A'}>
-              <Card.Image source={Assets.icons.blockchain} height={30} width={30} style={{ position: 'absolute', right: 5, top: 5 }} tintColor={Colors.$iconNeutral} />
-            </GridCard>
           ),
         },
       ]}
       numColumns={2}
       viewWidth={dimensions.width}
     />
-  ), [minerData, dimensions.width]);
+  ), [minerData, dimensions.width, hashrateHistory]);
 
   return (
     <>
-      <View flex row paddingV-8>
-        <RenderModeAlgoGrid />
-      </View>
-      <View flex paddingV-8>
-        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
-          <Text text70 $textDefault>Hashrate</Text>
+      <View paddingV-8>
+        <View paddingB-4 marginB-8 style={[styles.sectionDiv, { borderColor: chrome.border }]}>
+          <Text style={sectionTitleStyle}>Hashrate windows</Text>
         </View>
-        <View flex row>
-          <RenderHashrateGrid />
-        </View>
-        <View flex row paddingT-10 style={{ zIndex: 0 }}>
+        <RenderHashrateGrid />
+        <View paddingT-10 style={{ zIndex: 0 }}>
           <MinerCard
             title="Live Hashrate"
             subTitle={`${hashrateToString(_.last(hashrateHistory.historyCurrent) || 0, true)}/s`}
@@ -290,32 +299,23 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
           </MinerCard>
         </View>
       </View>
-      <View flex paddingV-8>
-        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
-          <Text text70 $textDefault>Shares</Text>
+      <View paddingV-8>
+        <View paddingB-4 marginB-8 style={[styles.sectionDiv, { borderColor: chrome.border }]}>
+          <Text style={sectionTitleStyle}>Shares detail</Text>
         </View>
-        <View flex row>
-          <RenderSharesGrid />
-        </View>
-        <View flex row paddingT-10>
-          <RenderSharesMoreGrid />
-        </View>
+        <RenderSharesGrid />
       </View>
-      <View flex paddingV-8>
-        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
-          <Text text70 $textDefault>CPU</Text>
+      <View paddingV-8>
+        <View paddingB-4 marginB-8 style={[styles.sectionDiv, { borderColor: chrome.border }]}>
+          <Text style={sectionTitleStyle}>CPU</Text>
         </View>
-        <View flex row>
-          <RenderCPUGrid />
-        </View>
+        <RenderCPUGrid />
       </View>
-      <View flex paddingV-8>
-        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
-          <Text text70 $textDefault>Memory</Text>
+      <View paddingV-8>
+        <View paddingB-4 marginB-8 style={[styles.sectionDiv, { borderColor: chrome.border }]}>
+          <Text style={sectionTitleStyle}>Memory</Text>
         </View>
-        <View flex row>
-          <RenderMemoryGrid />
-        </View>
+        <RenderMemoryGrid />
       </View>
     </>
   );
@@ -324,6 +324,5 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
 const styles = StyleSheet.create({
   sectionDiv: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.grey40,
   },
 });
