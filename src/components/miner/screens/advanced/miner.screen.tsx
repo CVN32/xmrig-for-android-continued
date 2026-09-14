@@ -45,7 +45,6 @@ const MinerScreen = () => {
   const { settings } = React.useContext(SettingsContext);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
 
-  const isRunning = workingState !== WorkingState.NOT_WORKING;
   const statusLabel = React.useMemo(() => {
     if (workingState === WorkingState.MINING) {
       return 'Running';
@@ -232,7 +231,7 @@ const MinerScreen = () => {
         >
           <View row spread centerV>
             <Text style={{ ...tokens.type.section, color: chrome.textColor }}>
-              Worker &amp; config
+              Worker & config
             </Text>
             <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
               {detailsOpen ? 'Hide' : 'Show'}
