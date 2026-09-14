@@ -65,12 +65,12 @@ export const AppNavigator:React.FC<ViewProps> = () => {
         component={AppTabs}
         options={{
           title: 'XMRig Continued',
-          headerTitleContainerStyle: { marginLeft: 10 },
-          headerRightContainerStyle: { marginRight: 10 },
+          headerTitleContainerStyle: { marginLeft: 8 },
+          headerRightContainerStyle: { marginRight: 12 },
+          headerShadowVisible: false,
           headerRight: () => (
-            <Text color={chrome.textColor}>
-              Version
-              {' '}
+            <Text text90 color={chrome.textColor} style={{ opacity: 0.7 }}>
+              v
               {version}
             </Text>
           ),

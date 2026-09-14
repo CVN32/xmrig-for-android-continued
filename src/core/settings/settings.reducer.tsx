@@ -15,7 +15,6 @@ export const SettingsReducer:Reducer<ISettings, ISettingsReducerAction> = (
   prevState: ISettings,
   action: ISettingsReducerAction,
 ) => {
-  console.log('reducer', action);
   switch (action.type) {
     case SettingsActionType.SET:
       return {
@@ -45,7 +44,7 @@ export const SettingsReducer:Reducer<ISettings, ISettingsReducerAction> = (
           ...prevState.configurations,
           {
             ...newConfig,
-            id: uuid.v4(),
+            id: (newConfig as Configuration).id || uuid.v4(),
           },
         ],
       } as ISettings;

@@ -24,45 +24,51 @@ export const MinerCard:React.FC<MinerCardProps> = ({
 }) => {
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
   return (
-  <Card
-    enableShadow
-    flex
-    backgroundColor={chrome.cardBG}
-    style={[style, disabled ? styles.disabledCard : { overflow: 'hidden' }]}
-    // eslint-disable-next-line react/jsx-props-no-spreading
-    {...cardProps}
-  >
-    <View centerV spread padding-10 paddingB-5>
-      {title && (
-        <View row>
-          <Card.Section
-            content={[
-              { text: title, text75: true, grey30: true },
-            ]}
-            style={{
-              borderTopRightRadius: 0,
-              borderTopLeftRadius: 0,
-              borderBottomLeftRadius: 0,
-              borderBottomRightRadius: 0,
-            }}
-          />
-        </View>
-      )}
-      { subTitle && (
-        <View row paddingT-5>
-          <Badge
-            backgroundColor={Colors.blue70}
-            labelStyle={{ color: Colors.blue10 }}
-            label={subTitle}
-            size={16}
-            // eslint-disable-next-line react/jsx-props-no-spreading
-            {...badgeProps}
-          />
-        </View>
-      )}
-    </View>
-    {children}
-  </Card>
+    <Card
+      enableShadow={false}
+      flex
+      backgroundColor={chrome.cardBG}
+      style={[
+        {
+          overflow: 'hidden',
+          borderRadius: chrome.radius,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: chrome.border,
+        },
+        style,
+        disabled ? styles.disabledCard : null,
+      ]}
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...cardProps}
+    >
+      <View centerV spread paddingH-12 paddingT-10 paddingB-4>
+        {title && (
+          <View row>
+            <Card.Section
+              content={[
+                { text: title, text80: true, grey30: true },
+              ]}
+              style={{
+                borderRadius: 0,
+              }}
+            />
+          </View>
+        )}
+        { subTitle && (
+          <View row paddingT-4>
+            <Badge
+              backgroundColor={Colors.blue70}
+              labelStyle={{ color: Colors.blue10, fontSize: 11 }}
+              label={subTitle}
+              size={18}
+              // eslint-disable-next-line react/jsx-props-no-spreading
+              {...badgeProps}
+            />
+          </View>
+        )}
+      </View>
+      {children}
+    </Card>
   );
 };
 

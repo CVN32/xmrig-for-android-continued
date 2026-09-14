@@ -105,11 +105,11 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
   const GridCard = React.useCallback(({ title, text, children }) => (
     <MinerCard title={title}>
       <Card.Section
-        paddingH-10
+        paddingH-12
         paddingB-10
-        paddingT-5
+        paddingT-2
         content={[
-          { text, text65: true },
+          { text, text70: true },
         ]}
         style={{
           borderTopRightRadius: 0,
@@ -127,9 +127,6 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
       {children}
     </MinerCard>
   ), []);
-
-  React.useEffect(() => console.log(minerData?.results), [minerData?.results]);
-  React.useEffect(() => console.log(minerData?.connection), [minerData?.connection]);
 
   const RenderCPUGrid = React.useCallback(() => (
     <GridView
@@ -272,12 +269,12 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
 
   return (
     <>
-      <View flex row paddingV-10>
+      <View flex row paddingV-8>
         <RenderModeAlgoGrid />
       </View>
-      <View flex paddingV-10>
-        <View flex row spread paddingB-5 marginB-10 style={styles.sectionDiv}>
-          <Text text60>Hashrate</Text>
+      <View flex paddingV-8>
+        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
+          <Text text70 $textDefault>Hashrate</Text>
         </View>
         <View flex row>
           <RenderHashrateGrid />
@@ -293,9 +290,9 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
           </MinerCard>
         </View>
       </View>
-      <View flex paddingV-10>
-        <View flex row spread paddingB-5 marginB-10 style={styles.sectionDiv}>
-          <Text text60>Shares</Text>
+      <View flex paddingV-8>
+        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
+          <Text text70 $textDefault>Shares</Text>
         </View>
         <View flex row>
           <RenderSharesGrid />
@@ -304,17 +301,17 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
           <RenderSharesMoreGrid />
         </View>
       </View>
-      <View flex paddingV-10>
-        <View flex row spread paddingB-5 marginB-10 style={styles.sectionDiv}>
-          <Text text60>CPU</Text>
+      <View flex paddingV-8>
+        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
+          <Text text70 $textDefault>CPU</Text>
         </View>
         <View flex row>
           <RenderCPUGrid />
         </View>
       </View>
-      <View flex paddingV-10>
-        <View flex row spread paddingB-5 marginB-10 style={styles.sectionDiv}>
-          <Text text60>Memory</Text>
+      <View flex paddingV-8>
+        <View flex row spread paddingB-4 marginB-8 style={styles.sectionDiv}>
+          <Text text70 $textDefault>Memory</Text>
         </View>
         <View flex row>
           <RenderMemoryGrid />
@@ -326,7 +323,7 @@ export const XMRigView:React.FC<XMRigViewProps> = ({
 
 const styles = StyleSheet.create({
   sectionDiv: {
-    borderBottomWidth: 1,
-    borderColor: Colors.grey30,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.grey40,
   },
 });

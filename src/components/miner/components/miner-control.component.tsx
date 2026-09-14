@@ -10,18 +10,23 @@ import {
   Incubator,
   Card,
   Assets,
-  AnimatedScanner,
+  Text,
 } from 'react-native-ui-lib';
+import uuid from 'react-native-uuid';
+import { useColorScheme } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useMiner } from '../../../core/hooks/use-miner.hook';
 import { SessionDataContext } from '../../../core/session-data/session-data.context';
 import { WorkingState } from '../../../core/session-data/session-data.interface';
 import { SettingsActionType, SettingsContext } from '../../../core/settings';
 import { useToaster } from '../../../core/hooks/use-toaster/use-toaster.hook';
-import { useColorScheme } from 'react-native';
 import { CHROME } from '../../../core/theme/chrome';
+import AddConfigurationsModal from '../../settings/modals/add-configuration.modal';
+import { ConfigurationMode } from '../../../core/settings/settings.interface';
 
 export const MinerControl:React.FC<ViewProps> = () => {
   const toaster = useToaster();
+  const navigation = useNavigation<any>();
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
 
   const { workingState } = React.useContext(SessionDataContext);
@@ -31,24 +36,26 @@ export const MinerControl:React.FC<ViewProps> = () => {
   const [selectedConfiguration, setSelectedConfiguration] = React.useState<string | undefined>(
     settings.selectedConfiguration,
   );
+  const [showAddModal, setShowAddModal] = React.useState(false);
 
   const isWorking = React.useMemo<boolean>(
     () => workingState !== WorkingState.NOT_WORKING,
     [workingState],
   );
 
+  const configsEmpty = _.isEmpty(settings.configurations);
+
   const handleStart = React.useCallback(() => {
-    console.log(settings.selectedConfiguration);
     if (!settings.selectedConfiguration) {
-      if (_.isEmpty(settings.configurations)) {
+      if (configsEmpty) {
         toaster({
-          message: 'Please add a Configuration from Settings menu',
+          message: 'Add a configuration first',
           position: 'top',
           preset: Incubator.ToastPresets.FAILURE,
         });
       } else {
         toaster({
-          message: 'Please select a Configuration to start mining',
+          message: 'Select a configuration to start',
           position: 'top',
           preset: Incubator.ToastPresets.FAILURE,
         });
@@ -56,16 +63,43 @@ export const MinerControl:React.FC<ViewProps> = () => {
     } else {
       startWithSelectedConfiguration();
     }
-  }, [settings]);
+  }, [settings, configsEmpty, startWithSelectedConfiguration, toaster]);
 
   React.useEffect(() => settingsDispatcher({
     type: SettingsActionType.SET_SELECTED_CONFIGURAION,
     value: selectedConfiguration,
   }), [selectedConfiguration]);
 
+  // Keep local selection in sync when settings change externally
+  React.useEffect(() => {
+    if (settings.selectedConfiguration && settings.selectedConfiguration !== selectedConfiguration) {
+      setSelectedConfiguration(settings.selectedConfiguration);
+    }
+  }, [settings.selectedConfiguration]);
+
+  const handleAddConfiguration = React.useCallback((name: string, mode: ConfigurationMode) => {
+    const id = `${uuid.v4()}`;
+    settingsDispatcher({
+      type: SettingsActionType.ADD_CONFIGURATION,
+      value: {
+        id,
+        name,
+        mode,
+      },
+    });
+    setSelectedConfiguration(id);
+    setShowAddModal(false);
+    toaster({
+      message: `Added '${name}'`,
+      position: 'top',
+      preset: Incubator.ToastPresets.SUCCESS,
+    });
+    navigation.navigate('Configuration', { id });
+  }, [settingsDispatcher, toaster, navigation]);
+
   const cardBorderColor = React.useMemo<string>(() => {
     if (!settings.selectedConfiguration) {
-      if (_.isEmpty(settings.configurations)) {
+      if (configsEmpty) {
         return Colors.$outlineDanger;
       }
       return Colors.$outlineWarning;
@@ -77,92 +111,120 @@ export const MinerControl:React.FC<ViewProps> = () => {
       return Colors.$outlineWarning;
     }
     return Colors.$outlinePrimary;
-  }, [selectedConfiguration, settings, workingState]);
+  }, [settings.selectedConfiguration, configsEmpty, workingState]);
 
   return (
-    <Card
-      row
-      center
-      enableShadow
-      backgroundColor={chrome.cardBG}
-      selected={workingState !== WorkingState.MINING}
-      selectionOptions={{
-        hideIndicator: true,
-        color: cardBorderColor,
-      }}
-      containerStyle={{ overflow: 'hidden' }}
-    >
-      {workingState === WorkingState.NOT_WORKING && (
-        <View padding-10 flex>
-          <Picker
-            floatingPlaceholder
-            placeholder={selectedConfiguration ? 'Selected configuration (click to change)' : 'Click here to select configuration'}
-            topBarProps={{ title: 'Configurations' }}
-            value={selectedConfiguration}
-            getLabel={
-              (value) => settings.configurations.find((config) => config.id === value)?.name || 'N/A'
-            }
-            showSearch
-            searchPlaceholder="Search a Configurations"
-            onChange={(value: any) => setSelectedConfiguration(value)}
-            style={{ ...Typography.text60, color: Colors.$textDefault }}
-            floatingPlaceholderStyle={{ ...Typography.text70, color: Colors.$textDefault }}
-            migrate
-            migrateTextField
-          >
-            {_.map(settings.configurations, (item) => (
-              <Picker.Item
-                key={item?.id}
-                value={item?.id || ''}
-                label={item?.name}
-              />
-            ))}
-          </Picker>
-        </View>
-      )}
-      {!isWorking && (
-        <View absF right bottom padding-10>
-          <Button
-            size={Button.sizes.small}
-            onPress={handleStart}
-            label="Start"
-            iconSource={Assets.icons.start}
-            iconStyle={{
-              width: 8,
-              height: 10,
-              margin: 5,
-              marginRight: 10,
-              tintColor: Colors.$iconDefaultLight,
-            }}
-          />
-        </View>
-      )}
-      {isWorking && (
-        <View padding-10 flex>
-          <Button
-            size={Button.sizes.medium}
-            backgroundColor={Colors.$backgroundDangerHeavy}
-            onPress={handleStop}
-            label="Stop"
-            iconSource={Assets.icons.stop}
-            iconStyle={{
-              width: 15,
-              height: 15,
-              margin: 5,
-              marginRight: 10,
-              tintColor: Colors.$iconDefaultLight,
-            }}
-            text65
-          />
-        </View>
-      )}
-      {!selectedConfiguration && (
-        <AnimatedScanner
-          backgroundColor={Colors.$backgroundWarning}
-          progress={100}
-          duration={3000}
-        />
-      )}
-    </Card>
+    <>
+      <AddConfigurationsModal
+        visible={showAddModal}
+        onDismiss={() => setShowAddModal(false)}
+        onAdd={handleAddConfiguration}
+      />
+      <Card
+        enableShadow
+        backgroundColor={chrome.cardBG}
+        selected={!isWorking}
+        selectionOptions={{
+          hideIndicator: true,
+          color: cardBorderColor,
+        }}
+        containerStyle={{
+          overflow: 'hidden',
+          borderRadius: 12,
+        }}
+      >
+        {workingState === WorkingState.NOT_WORKING && configsEmpty && (
+          <View padding-16>
+            <Text text70 $textDefault marginB-6>No configuration yet</Text>
+            <Text text90 $textNeutral marginB-14>
+              Add a profile to pick a pool and wallet, then you can start mining here.
+            </Text>
+            <Button
+              size={Button.sizes.medium}
+              label="Add configuration"
+              iconSource={Assets.icons.clipboard}
+              iconStyle={{
+                width: 14,
+                height: 18,
+                marginRight: 8,
+                tintColor: Colors.$iconDefaultLight,
+              }}
+              onPress={() => setShowAddModal(true)}
+            />
+          </View>
+        )}
+
+        {workingState === WorkingState.NOT_WORKING && !configsEmpty && (
+          <View row centerV padding-12>
+            <View flex marginR-10>
+              <Picker
+                floatingPlaceholder
+                placeholder={selectedConfiguration ? 'Selected configuration' : 'Select configuration'}
+                topBarProps={{ title: 'Configurations' }}
+                value={selectedConfiguration}
+                getLabel={
+                  (value) => settings.configurations.find((config) => config.id === value)?.name || 'N/A'
+                }
+                showSearch
+                searchPlaceholder="Search configurations"
+                onChange={(value: any) => setSelectedConfiguration(value)}
+                style={{ ...Typography.text70, color: Colors.$textDefault }}
+                floatingPlaceholderStyle={{ ...Typography.text80, color: Colors.$textNeutral }}
+                migrate
+                migrateTextField
+              >
+                {_.map(settings.configurations, (item) => (
+                  <Picker.Item
+                    key={item?.id}
+                    value={item?.id || ''}
+                    label={item?.name}
+                  />
+                ))}
+              </Picker>
+            </View>
+            <Button
+              size={Button.sizes.small}
+              outline
+              marginR-8
+              label="Add"
+              onPress={() => setShowAddModal(true)}
+            />
+            <Button
+              size={Button.sizes.small}
+              onPress={handleStart}
+              label="Start"
+              iconSource={Assets.icons.start}
+              iconStyle={{
+                width: 8,
+                height: 10,
+                margin: 5,
+                marginRight: 10,
+                tintColor: Colors.$iconDefaultLight,
+              }}
+            />
+          </View>
+        )}
+
+        {isWorking && (
+          <View padding-12>
+            <Button
+              size={Button.sizes.medium}
+              backgroundColor={Colors.$backgroundDangerHeavy}
+              onPress={handleStop}
+              label="Stop"
+              iconSource={Assets.icons.stop}
+              iconStyle={{
+                width: 15,
+                height: 15,
+                margin: 5,
+                marginRight: 10,
+                tintColor: Colors.$iconDefaultLight,
+              }}
+              text65
+            />
+          </View>
+        )}
+      </Card>
+    </>
   );
 };

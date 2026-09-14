@@ -25,26 +25,21 @@ const MinerScreen = () => {
 
   return (
     <View bg-screenBG flex>
-      <View
-        paddingV-10
-        paddingH-10
-      >
+      <View paddingV-12 paddingH-14>
         <MinerControl />
       </View>
-      <View flex paddingH-10>
+      <View flex paddingH-14>
         <ScrollView nestedScrollEnabled>
-          <View flex row spread centerV>
-            <Text text60>Miner Statistics</Text>
-            <View flex flex-1 right paddingH-10>
-              <Text text80>
-                {CPUTemp.toFixed(2)}
+          <View flex row spread centerV paddingB-8>
+            <Text text60 $textDefault>Statistics</Text>
+            <View row centerV>
+              <Text text80 $textNeutral marginR-10>
+                {CPUTemp.toFixed(1)}
                 {' ℃'}
               </Text>
-            </View>
-            <View padding-0 margin-0>
               <Battery
                 percent={powerContext.batteryLevel}
-                size={40}
+                size={36}
                 color={battryColor}
                 charging={powerContext.isPowerConnected}
                 outlined={false}

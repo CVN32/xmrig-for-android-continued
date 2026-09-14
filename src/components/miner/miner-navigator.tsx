@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Colors,
   TabController,
   View,
 } from 'react-native-ui-lib';
@@ -17,31 +16,26 @@ const LazyLogScreen = () => (<LazyLoader><LogScreen /></LazyLoader>);
 export const TabNavigator:React.FC<ViewProps> = () => {
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
   return (
-  <TabController items={[{ label: 'Miner' }, { label: 'Log' }]}>
-    <View flex>
-      <TabController.TabPage index={0}><LazyMinerScreen /></TabController.TabPage>
-      <TabController.TabPage index={1} lazy><LazyLogScreen /></TabController.TabPage>
-    </View>
-    <View
-      br30
-      backgroundColor={chrome.cardBG}
-      style={{
-        overflow: 'hidden',
-        borderColor: Colors.blue40,
-        borderTopWidth: 2,
-        borderLeftWidth: 0.3,
-        borderRightWidth: 0.3,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-      }}
-    >
-      <TabController.TabBar
-        enableShadow
+    <TabController items={[{ label: 'Miner' }, { label: 'Log' }]}>
+      <View flex>
+        <TabController.TabPage index={0}><LazyMinerScreen /></TabController.TabPage>
+        <TabController.TabPage index={1} lazy><LazyLogScreen /></TabController.TabPage>
+      </View>
+      <View
         backgroundColor={chrome.cardBG}
-        labelColor={chrome.textColor}
-        selectedLabelColor={chrome.textColor}
-      />
-    </View>
-  </TabController>
-);
+        style={{
+          overflow: 'hidden',
+          borderTopWidth: 1,
+          borderColor: chrome.border,
+        }}
+      >
+        <TabController.TabBar
+          enableShadow={false}
+          backgroundColor={chrome.cardBG}
+          labelColor={chrome.mutedText}
+          selectedLabelColor={chrome.textColor}
+        />
+      </View>
+    </TabController>
+  );
 };

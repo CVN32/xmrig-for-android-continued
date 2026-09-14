@@ -90,12 +90,12 @@ const SettingsScreen: React.FC = () => {
       <View
         row
         spread
-        paddingV-10
-        paddingH-10
+        paddingV-12
+        paddingH-14
         centerV
       >
         <View row centerV>
-          <Text text60>Settings</Text>
+          <Text text60 $textDefault>Settings</Text>
         </View>
         <Button
           size={Button.sizes.small}

@@ -1,8 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
-  StyleSheet, FlatList,
+  StyleSheet, FlatList, useColorScheme,
 } from 'react-native';
+import { CHROME } from '../../../../core/theme/chrome';
 import { merge } from 'lodash/fp';
 import {
   Card, ListItem, Text, View, ViewProps, Checkbox, Colors,
@@ -20,14 +21,17 @@ export const ConfigurationsListView:React.FC<ConfigurationsListViewProps> = ({
   onSelected,
 }) => {
   const navigation = useNavigation();
+  const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
   const [selected, setSelected] = React.useState<string[]>([]);
 
   React.useEffect(() => onSelected(selected), [selected]);
 
   return (
     <Card
-      enableShadow
+      enableShadow={false}
       flex
+      backgroundColor={chrome.cardBG}
+      style={{ borderRadius: chrome.radius, borderWidth: StyleSheet.hairlineWidth, borderColor: chrome.border, overflow: 'hidden' }}
     >
       <View>
         <FlatList
@@ -39,7 +43,7 @@ export const ConfigurationsListView:React.FC<ConfigurationsListViewProps> = ({
               >
                 <ListItem.Part marginH-10 containerStyle={merge(styles.border, { flexGrow: 1 })}>
                   <ListItem.Part column containerStyle={{ flexGrow: 1 }}>
-                    <Text row grey10 text65 numberOfLines={1}>
+                    <Text row $textDefault text70 numberOfLines={1}>
                       {item.name}
                     </Text>
                     <Text row $textNeutralLight text90 numberOfLines={1}>

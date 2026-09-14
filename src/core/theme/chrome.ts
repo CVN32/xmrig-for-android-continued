@@ -6,12 +6,18 @@ export const CHROME = {
     screenBG: Colors.grey70,
     cardBG: Colors.white,
     textColor: Colors.grey10,
+    mutedText: Colors.grey30,
+    border: Colors.grey60,
+    radius: 12,
     statusBarStyle: 'dark-content' as const,
   },
   dark: {
     screenBG: Colors.grey10,
     cardBG: Colors.grey20,
     textColor: Colors.grey70,
+    mutedText: Colors.grey50,
+    border: Colors.grey30,
+    radius: 12,
     statusBarStyle: 'light-content' as const,
   },
 };
