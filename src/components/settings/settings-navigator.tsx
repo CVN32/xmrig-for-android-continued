@@ -13,19 +13,19 @@ const LazyConfigurationsScreen = () => (<LazyLoader><ConfigurationsScreen /></La
 const SettingsScreen = React.lazy(() => import('./screens/settings.screen'));
 const LazySettingsScreen = () => (<LazyLoader><SettingsScreen /></LazyLoader>);
 
-export const TabNavigator:React.FC<ViewProps> = () => {
+/**
+ * Nested Settings sub-tabs use a TOP bar so they do not compete with the
+ * app-level bottom tabs (Miner | Log | Settings).
+ */
+export const TabNavigator: React.FC<ViewProps> = () => {
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
   return (
     <TabController items={[{ label: 'Configurations' }, { label: 'Settings' }]}>
-      <View flex>
-        <TabController.TabPage index={0}><LazyConfigurationsScreen /></TabController.TabPage>
-        <TabController.TabPage index={1} lazy><LazySettingsScreen /></TabController.TabPage>
-      </View>
       <View
         backgroundColor={chrome.cardBG}
         style={{
           overflow: 'hidden',
-          borderTopWidth: 1,
+          borderBottomWidth: 1,
           borderColor: chrome.border,
         }}
       >
@@ -35,6 +35,10 @@ export const TabNavigator:React.FC<ViewProps> = () => {
           labelColor={chrome.mutedText}
           selectedLabelColor={chrome.textColor}
         />
+      </View>
+      <View flex>
+        <TabController.TabPage index={0}><LazyConfigurationsScreen /></TabController.TabPage>
+        <TabController.TabPage index={1} lazy><LazySettingsScreen /></TabController.TabPage>
       </View>
     </TabController>
   );

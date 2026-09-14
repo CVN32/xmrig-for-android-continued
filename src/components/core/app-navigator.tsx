@@ -16,34 +16,47 @@ import { CHROME } from '../../core/theme/chrome';
 
 const Stack = createStackNavigator();
 
+const MinerScreen = React.lazy(() => import('../miner/screens/advanced/miner.screen'));
+const LogScreen = React.lazy(() => import('../miner/screens/advanced/log.screen'));
 const Settings = React.lazy(() => import('../settings/settings-view'));
-const Miner = React.lazy(() => import('../miner/miner-view'));
 
+const LazyMinerScreen = () => (<LazyLoader><MinerScreen /></LazyLoader>);
+const LazyLogScreen = () => (<LazyLoader><LogScreen /></LazyLoader>);
 const LazySettings = () => (<LazyLoader><Settings /></LazyLoader>);
-const LazyMiner = () => (<LazyLoader><Miner /></LazyLoader>);
 
-const AppTabs:React.FC<ViewProps> = () => {
+/** Single bottom tab bar: Miner | Log | Settings (no top tabs). */
+const AppTabs: React.FC<ViewProps> = () => {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const chrome = CHROME[scheme];
   return (
     <View flex backgroundColor={chrome.screenBG}>
-      <TabController items={[{ label: 'Miner' }, { label: 'Settings' }]}>
-        <TabController.TabBar
-          enableShadow
-          backgroundColor={chrome.screenBG}
-          labelColor={chrome.textColor}
-          selectedLabelColor={chrome.textColor}
-        />
+      <TabController items={[{ label: 'Miner' }, { label: 'Log' }, { label: 'Settings' }]}>
         <View flex backgroundColor={chrome.screenBG}>
-          <TabController.TabPage index={0}><LazyMiner /></TabController.TabPage>
-          <TabController.TabPage index={1} lazy><LazySettings /></TabController.TabPage>
+          <TabController.TabPage index={0}><LazyMinerScreen /></TabController.TabPage>
+          <TabController.TabPage index={1} lazy><LazyLogScreen /></TabController.TabPage>
+          <TabController.TabPage index={2} lazy><LazySettings /></TabController.TabPage>
+        </View>
+        <View
+          backgroundColor={chrome.cardBG}
+          style={{
+            overflow: 'hidden',
+            borderTopWidth: 1,
+            borderColor: chrome.border,
+          }}
+        >
+          <TabController.TabBar
+            enableShadow={false}
+            backgroundColor={chrome.cardBG}
+            labelColor={chrome.mutedText}
+            selectedLabelColor={chrome.textColor}
+          />
         </View>
       </TabController>
     </View>
   );
 };
 
-export const AppNavigator:React.FC<ViewProps> = () => {
+export const AppNavigator: React.FC<ViewProps> = () => {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const chrome = CHROME[scheme];
 
