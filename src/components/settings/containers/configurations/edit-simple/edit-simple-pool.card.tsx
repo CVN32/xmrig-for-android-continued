@@ -2,15 +2,21 @@ import { merge } from 'lodash/fp';
 import React from 'react';
 import {
   Button,
-  Card, Colors, Incubator, SkeletonView, Switch, Text, View,
+  Card, Colors, Chip, Incubator, SkeletonView, Switch, Text, View,
 } from 'react-native-ui-lib';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
+import Clipboard from '@react-native-community/clipboard';
 import { EditSimpleCardProps } from './index';
 import {
   hostnameValidator, passwordValidator, poolValidator, portValidator, usernameValidator,
 } from '../../../../../core/utils/validators';
 import { IConfiguratioPropertiesPool } from '../../../../../core/settings/settings.interface';
 import PoolListModal from '../../../modals/pool-list.modal';
+import { textFieldDefaults, tokens } from '../../../../../core/theme/tokens';
+import {
+  loadRecentWallets,
+  rememberWallet,
+} from '../../../../../core/pools/recent-wallets';
 
 export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
   { setLocalState, localState },
@@ -26,6 +32,49 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
   }, [localState.properties]);
 
   const [showPoolListDialog, setShowPoolListDialog] = React.useState<boolean>(false);
+  const [recent, setRecent] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    let alive = true;
+    loadRecentWallets().then((list) => {
+      if (alive) {
+        setRecent(list);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const setUsername = React.useCallback((text: string) => {
+    setLocalState((oldState) => merge(
+      oldState,
+      {
+        properties: {
+          pool: {
+            username: text,
+          },
+        },
+      },
+    ));
+  }, [setLocalState]);
+
+  const applyWallet = React.useCallback(async (addr: string) => {
+    setUsername(addr);
+    const next = await rememberWallet(addr);
+    setRecent(next);
+  }, [setUsername]);
+
+  const onPasteUsername = React.useCallback(async () => {
+    try {
+      const clip = await Clipboard.getString();
+      if (clip && clip.trim()) {
+        await applyWallet(clip.trim());
+      }
+    } catch {
+      // ignore
+    }
+  }, [applyWallet]);
 
   return (
     <>
@@ -39,12 +88,16 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
               },
             },
           ));
+          if (pool.username) {
+            rememberWallet(pool.username).then(setRecent);
+          }
         }}
         onDismiss={() => setShowPoolListDialog(false)}
         visible={showPoolListDialog}
       />
       <Card
         enableShadow
+        backgroundColor={tokens.bg.surface}
         selected={!valid}
         selectionOptions={{
           hideIndicator: true,
@@ -56,8 +109,12 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
             <Card.Section
               style={{ flexShrink: 1 }}
               content={[
-                { text: 'Pool', text65: true, $textDefault: true },
-                { text: 'Pools connection details provided by the pool. We provide presets for some popular pools.', text90: true, $textNeutral: true },
+                { text: 'Pool', text65: true, color: tokens.text.primary },
+                {
+                  text: 'Pools connection details provided by the pool. We provide presets for some popular pools.',
+                  text90: true,
+                  color: tokens.text.secondary,
+                },
               ]}
             />
             <View paddingL-10>
@@ -100,6 +157,8 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
                 fieldStyle={styles.withUnderline}
                 hint="pool.domain.tld"
                 keyboardType="url"
+                // eslint-disable-next-line react/jsx-props-no-spreading
+                {...textFieldDefaults}
               />
             </View>
             <View flex-1>
@@ -135,23 +194,32 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
                 fieldStyle={styles.withUnderline}
                 hint="80"
                 keyboardType="numeric"
+                // eslint-disable-next-line react/jsx-props-no-spreading
+                {...textFieldDefaults}
               />
             </View>
+          </View>
+          <View row spread centerV marginB-4>
+            <Text text80 color={tokens.text.secondary}>Username / Wallet</Text>
+            <Button
+              label="Paste"
+              size={Button.sizes.xSmall}
+              backgroundColor={tokens.border.subtle}
+              color={tokens.text.primary}
+              onPress={onPasteUsername}
+            />
           </View>
           <Incubator.TextField
             placeholder="Username"
             floatingPlaceholder
             value={localState.properties?.pool?.username}
-            onChangeText={(text) => setLocalState((oldState) => merge(
-              oldState,
-              {
-                properties: {
-                  pool: {
-                    username: text,
-                  },
-                },
-              },
-            ))}
+            onChangeText={setUsername}
+            onBlur={() => {
+              const u = localState.properties?.pool?.username;
+              if (u) {
+                rememberWallet(u).then(setRecent);
+              }
+            }}
             validate={
               (value: string) => usernameValidator
                 .validate(value)
@@ -169,7 +237,26 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
             maxLength={128}
             fieldStyle={styles.withUnderline}
             hint="Mostly used for wallet"
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...textFieldDefaults}
           />
+          {recent.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              {recent.map((addr) => (
+                <Chip
+                  key={addr}
+                  label={`${addr.slice(0, 6)}…${addr.slice(-4)}`}
+                  marginR-8
+                  onPress={() => applyWallet(addr)}
+                  labelStyle={{ color: tokens.text.primary }}
+                  containerStyle={{
+                    borderColor: tokens.border.subtle,
+                    backgroundColor: tokens.bg.elevated,
+                  }}
+                />
+              ))}
+            </ScrollView>
+          )}
           <Incubator.TextField
             placeholder="Password"
             floatingPlaceholder
@@ -200,9 +287,11 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
             showCharCounter
             maxLength={128}
             fieldStyle={styles.withUnderline}
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...textFieldDefaults}
           />
           <View row flex paddingT-20>
-            <Text text80 $textNeutralLight flex column>SSL</Text>
+            <Text text80 color={tokens.text.secondary} flex column>SSL</Text>
             <Switch
               value={localState.properties?.pool?.sslEnabled}
               onValueChange={(value) => setLocalState((oldState) => merge(
@@ -226,7 +315,7 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
 const styles = StyleSheet.create({
   withUnderline: {
     borderBottomWidth: 1,
-    borderColor: Colors.$outlineDisabled,
+    borderColor: tokens.border.subtle,
     paddingBottom: 4,
   },
 });
