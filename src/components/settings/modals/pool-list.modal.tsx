@@ -3,7 +3,7 @@ import React from 'react';
 import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Button, Chip, Colors, Incubator, Picker, Typography, View,
+  Button, Chip, Incubator, Picker, Typography, View,
 } from 'react-native-ui-lib';
 import { IConfiguratioPropertiesPool } from '../../../core/settings/settings.interface';
 import { sheetBg, tokens } from '../../../core/theme/tokens';
