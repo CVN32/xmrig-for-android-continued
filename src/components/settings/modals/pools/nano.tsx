@@ -1,7 +1,6 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, poolFieldProps, sharedStyles } from '.';
-import { validateWalletAddress } from '../../../../core/utils';
+import { IPool, poolFieldProps, sharedStyles, WalletAddressField } from '.';
 
 const hostname = 'xmr-eu1.nanopool.org';
 const port = 14444;
@@ -25,26 +24,7 @@ export const Nano:React.FC<IPool> = ({ onChange }) => {
 
   return (
     <>
-      <Incubator.TextField
-        label="Wallet Address"
-        value={wallet}
-        onChangeText={setWallet}
-        validate={['required', (value: string) => validateWalletAddress(value)]}
-        validationMessage={['Required', 'Wallet validation failed']}
-        validateOnChange
-        enableErrors
-        floatOnFocus
-        showCharCounter
-        maxLength={128}
-        fieldStyle={sharedStyles.withUnderline}
-        hint="46gPyHjLPPM8HaayVyvCDcF2..."
-        placeholder="46gPyHjLPPM8HaayVyvCDcF2..."
-        marginB-10
-        numberOfLines={1}
-        textBreakStrategy="simple"
-        // eslint-disable-next-line react/jsx-props-no-spreading
-        {...poolFieldProps}
-      />
+      <WalletAddressField value={wallet} onChangeText={setWallet} />
       <Incubator.TextField
         label="Worker Name"
         value={worker}
