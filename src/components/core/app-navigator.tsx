@@ -5,7 +5,6 @@ import {
   Text,
   ViewProps,
 } from 'react-native-ui-lib';
-import { useColorScheme } from 'react-native';
 
 import SplashScreen from 'react-native-splash-screen';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -13,6 +12,7 @@ import { LazyLoader } from './lazy-loader';
 import ConfigurationEditScreen from '../settings/screens/configuration-edit.screen';
 import { version } from '../../version';
 import { CHROME } from '../../core/theme/chrome';
+import { tokens } from '../../core/theme/tokens';
 
 const Stack = createStackNavigator();
 
@@ -26,8 +26,7 @@ const LazySettings = () => (<LazyLoader><Settings /></LazyLoader>);
 
 /** Single bottom tab bar: Miner | Log | Settings (no top tabs). */
 const AppTabs: React.FC<ViewProps> = () => {
-  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const chrome = CHROME[scheme];
+  const chrome = CHROME.dark;
   return (
     <View flex backgroundColor={chrome.screenBG}>
       <TabController items={[{ label: 'Miner' }, { label: 'Log' }, { label: 'Settings' }]}>
@@ -49,6 +48,7 @@ const AppTabs: React.FC<ViewProps> = () => {
             backgroundColor={chrome.cardBG}
             labelColor={chrome.mutedText}
             selectedLabelColor={chrome.textColor}
+            indicatorStyle={{ backgroundColor: tokens.accent }}
           />
         </View>
       </TabController>
@@ -57,8 +57,7 @@ const AppTabs: React.FC<ViewProps> = () => {
 };
 
 export const AppNavigator: React.FC<ViewProps> = () => {
-  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const chrome = CHROME[scheme];
+  const chrome = CHROME.dark;
 
   useEffect(() => {
     SplashScreen.hide();

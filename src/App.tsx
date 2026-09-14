@@ -1,9 +1,9 @@
 import React from 'react';
 import { Colors, LoaderScreen } from 'react-native-ui-lib';
-import { Appearance, StatusBar, useColorScheme } from 'react-native';
+import { StatusBar } from 'react-native';
 import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { SettingsContext, SettingsContextProvider } from './core/settings';
 import { AppNavigator } from './components';
 import { SessionDataContextProvider } from './core/session-data/session-data.context';
@@ -12,17 +12,15 @@ import { LoggerContextProvider } from './core/logger';
 import { ToasterProvider } from './core/hooks/use-toaster/toaset.context';
 import { LoadAssets } from './assets';
 import { applyColorScheme, CHROME } from './core/theme/chrome';
+import { tokens } from './core/theme/tokens';
 
 enableScreens(false);
 
 const AppWithSettings:React.FC = () => {
   React.useEffect(() => {
     LoadAssets();
-    applyColorScheme(Appearance.getColorScheme());
-    const sub = Appearance.addChangeListener(({ colorScheme }) => {
-      applyColorScheme(colorScheme);
-    });
-    return () => sub.remove();
+    // Consistent dark theme — ignore system light (white cards + faint text).
+    applyColorScheme('dark');
   }, []);
 
   return (
@@ -34,9 +32,20 @@ const AppWithSettings:React.FC = () => {
 
 const App = () => {
   const { settings } = React.useContext(SettingsContext);
-  const systemScheme = useColorScheme();
-  const scheme = systemScheme === 'dark' ? 'dark' : 'light';
-  const chrome = CHROME[scheme];
+  const chrome = CHROME.dark;
+
+  const navTheme = React.useMemo(() => ({
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: tokens.accent,
+      background: chrome.screenBG,
+      card: chrome.cardBG,
+      text: chrome.textColor,
+      border: chrome.border,
+      notification: tokens.accent,
+    },
+  }), [chrome]);
 
   if (settings.ready === false) {
     return <LoaderScreen message="Loading..." color={Colors.grey40} />;
@@ -46,10 +55,17 @@ const App = () => {
       <LoggerContextProvider>
         <PowerContextProvider>
           <SessionDataContextProvider>
-            <SafeAreaView style={{ flex: 1, backgroundColor: chrome.screenBG }} edges={['top', 'left', 'right']}>
-              <StatusBar barStyle={chrome.statusBarStyle} backgroundColor={chrome.screenBG} translucent={false} />
+            <SafeAreaView
+              style={{ flex: 1, backgroundColor: chrome.screenBG }}
+              edges={['top', 'left', 'right', 'bottom']}
+            >
+              <StatusBar
+                barStyle="light-content"
+                backgroundColor={chrome.screenBG}
+                translucent={false}
+              />
               <ToasterProvider>
-                <NavigationContainer>
+                <NavigationContainer theme={navTheme}>
                   <AppNavigator />
                 </NavigationContainer>
               </ToasterProvider>
