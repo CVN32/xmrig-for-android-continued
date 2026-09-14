@@ -1,31 +1,31 @@
 import { Colors } from 'react-native-ui-lib';
 import { tokens } from './tokens';
 
-/** Opaque chrome — shared by App root, navigators, and cards. */
+/** Opaque chrome — dark-first (avoid white cards + light-gray text). */
+const darkChrome = {
+  screenBG: tokens.bg.app,
+  cardBG: tokens.bg.surface,
+  textColor: tokens.text.primary,
+  mutedText: tokens.text.secondary,
+  border: tokens.border.subtle,
+  radius: 12,
+  statusBarStyle: 'light-content' as const,
+};
+
 export const CHROME = {
-  light: {
-    screenBG: Colors.grey70,
-    cardBG: Colors.white,
-    textColor: Colors.grey10,
-    mutedText: Colors.grey30,
-    border: Colors.grey60,
-    radius: 12,
-    statusBarStyle: 'dark-content' as const,
-  },
-  dark: {
-    screenBG: tokens.bg.app,
-    cardBG: tokens.bg.surface,
-    textColor: tokens.text.primary,
-    mutedText: tokens.text.secondary,
-    border: tokens.border.subtle,
-    radius: 12,
-    statusBarStyle: 'light-content' as const,
-  },
+  light: { ...darkChrome },
+  dark: { ...darkChrome },
 };
 
 export type ChromeScheme = keyof typeof CHROME;
 
-export const applyColorScheme = (system: 'light' | 'dark' | null | undefined): ChromeScheme => {
+/**
+ * Always pin ui-lib semantic colors to the dark elevated palette.
+ * Field testing showed light cards + light $text* = invisible section titles.
+ */
+export const applyColorScheme = (
+  _system?: 'light' | 'dark' | null,
+): ChromeScheme => {
   Colors.loadColors({
     bgApp: tokens.bg.app,
     bgSurface: tokens.bg.surface,
@@ -39,36 +39,26 @@ export const applyColorScheme = (system: 'light' | 'dark' | null | undefined): C
     success: tokens.success,
   });
 
-  const scheme: ChromeScheme = system === 'dark' ? 'dark' : 'light';
+  const schemeColors = {
+    screenBG: tokens.bg.app,
+    textColor: tokens.text.primary,
+    moonOrSun: Colors.grey80,
+    mountainForeground: Colors.violet10,
+    mountainBackground: Colors.violet20,
+    $backgroundDefault: tokens.bg.app,
+    $backgroundElevated: tokens.bg.elevated,
+    $backgroundNeutralLight: tokens.bg.surface,
+    $backgroundNeutral: tokens.bg.surface,
+    $textDefault: tokens.text.primary,
+    $textNeutral: tokens.text.secondary,
+    $textNeutralLight: tokens.text.secondary,
+    $outlineDisabled: tokens.border.subtle,
+  };
+
   Colors.loadSchemes({
-    light: {
-      screenBG: CHROME.light.screenBG,
-      textColor: CHROME.light.textColor,
-      moonOrSun: Colors.yellow30,
-      mountainForeground: Colors.green30,
-      mountainBackground: Colors.green50,
-      $backgroundDefault: Colors.grey70,
-      // Sheets/modals: never white — use elevated dark token
-      $backgroundElevated: tokens.bg.elevated,
-      $textDefault: tokens.text.primary,
-      $textNeutral: tokens.text.secondary,
-      $textNeutralLight: tokens.text.disabled,
-      $outlineDisabled: tokens.border.subtle,
-    },
-    dark: {
-      screenBG: CHROME.dark.screenBG,
-      textColor: CHROME.dark.textColor,
-      moonOrSun: Colors.grey80,
-      mountainForeground: Colors.violet10,
-      mountainBackground: Colors.violet20,
-      $backgroundDefault: tokens.bg.app,
-      $backgroundElevated: tokens.bg.elevated,
-      $textDefault: tokens.text.primary,
-      $textNeutral: tokens.text.secondary,
-      $textNeutralLight: tokens.text.disabled,
-      $outlineDisabled: tokens.border.subtle,
-    },
+    light: schemeColors,
+    dark: schemeColors,
   });
-  Colors.setScheme(scheme);
-  return scheme;
+  Colors.setScheme('dark');
+  return 'dark';
 };
