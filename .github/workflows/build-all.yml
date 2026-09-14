@@ -1,108 +1,84 @@
 name: BuildAll
 
-#on: workflow_dispatch
-
 on:
+  workflow_dispatch:
   pull_request:
     types: [closed]
     branches:
       - main
 
-#on:
-#  push:
-#    tags:
-#      - '*'
-      
 jobs:
   build:
-
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/setup-python@v2
-      with:
-        python-version: '2.x'
-        architecture: 'x64'
-    - uses: nttld/setup-ndk@v1.0.6
-      with:
-        ndk-version: r21e
-    - uses: actions/checkout@v2
-    
-    - name: Get version
-      uses: KageKirin/get-node-package-version@v0
-      id: package_version
-    
-    - name: Set up JDK 11
-      uses: actions/setup-java@v2
-      with:
-        distribution: 'adopt'
-        java-version: '11'
-        cache: 'gradle'
-        
-    - uses: actions/setup-node@v2
-      with:
-        node-version: '17.1.0'
-        cache: 'yarn'
-        
-    - name: Bump version
-      id: bump_version
-      uses: oflynned/Android-Semantic-Release@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - run: yarn
-    - run: node update_version.js
-    
-    - name: Build XMRig, libUV, OpenSSL & hwloc
-      run: cd xmrig/lib-builder && mkdir build && mkdir build/src && mkdir build/build && make all && cd .. && cd .. 
-        
-    - run: yarn
-    - run: cd android && ./gradlew bundleRelease && cd ..
-    
-    - name: install bundletool
-      uses: enniel/bundletool-runner@v1.1.0
-    
-    - run: java -jar /home/runner/bundletool/bundletool.jar build-apks --mode=universal --bundle=./android/app/build/outputs/bundle/release/app-release.aab --output=./android/app/build/outputs/bundle/release/app-release.apks
-    - run: mv ./android/app/build/outputs/bundle/release/app-release.apks ./android/app/build/outputs/bundle/release/app-release-apk.zip
-    - run: unzip ./android/app/build/outputs/bundle/release/app-release-apk.zip
-    - run: mv universal.apk ./android/app/build/outputs/bundle/release/app-release.apk
-    - run: rm ./android/app/build/outputs/bundle/release/app-release-apk.zip
-    - run: mv ./android/app/build/outputs/bundle/release/app-release.apk ./android/app/build/outputs/bundle/release/xmrig-for-android_v${{ steps.bump_version.outputs.new_tag }}.apk
-    - run: mv ./android/app/build/outputs/bundle/release/app-release.aab ./android/app/build/outputs/bundle/release/xmrig-for-android_v${{ steps.bump_version.outputs.new_tag }}.aab
-    
-    - name: Sign app APK
-      uses: r0adkll/sign-android-release@v1
-      # ID used to access action output
-      id: sign_app
-      with:
-        releaseDirectory: ./android/app/build/outputs/bundle/release
-        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-        alias: ${{ secrets.ALIAS }}
-        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-        keyPassword: ${{ secrets.KEY_PASSWORD }}
-      env:
-        BUILD_TOOLS_VERSION: "30.0.2"
-        
-    - uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: true
-        automatic_release_tag: ${{ steps.bump_version.outputs.new_tag }}
-        title: ${{ steps.bump_version.outputs.new_tag }}
-        files: |
-          ./android/app/build/outputs/bundle/release/*.apk
-          ./android/app/build/outputs/bundle/release/*.aab
-        
-    #- name: Install hub
-    #  uses: geertvdc/setup-hub@master
-    #  env:
-    #    ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-    
-    #- name: run hub commands
-    #  env:
-    #    GITHUB_USER: ${{ secrets.USER }}
-    #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #  run: |
-    #       hub release edit -dp -a ./android/app/build/outputs/bundle/release/xmrig-for-android_v${GITHUB_REF##*/}-signed.apk -a ./android/app/build/outputs/bundle/release/xmrig-for-android_v${GITHUB_REF##*/}.apk -a ./android/app/build/outputs/bundle/release/xmrig-for-android_v${GITHUB_REF##*/}.aab -m "${GITHUB_REF##*/}" ${GITHUB_REF##*/}
-      
-      
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "17"
+          cache: yarn
+
+      - name: Restore native libs from last arm64 release APK
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/prev.apk \
+            https://github.com/CVN32/xmrig-for-android-continued/releases/download/v0.2.4/xmrig-continued-0.2.4-arm64.apk
+          mkdir -p /tmp/apkout
+          unzip -qo /tmp/prev.apk 'lib/arm64-v8a/*' -d /tmp/apkout
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          cp /tmp/apkout/lib/arm64-v8a/*.so android/app/src/main/jniLibs/arm64-v8a/
+          ls -la android/app/src/main/jniLibs/arm64-v8a/
+
+      - name: Install JS deps
+        run: yarn install --frozen-lockfile || yarn install
+
+      - name: Assemble release APK
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Package artifact
+        id: artifact
+        run: |
+          set -euo pipefail
+          MAJOR=$(grep '^majorVersion=' version.properties | cut -d= -f2)
+          MINOR=$(grep '^minorVersion=' version.properties | cut -d= -f2)
+          PATCH=$(grep '^patchVersion=' version.properties | cut -d= -f2)
+          VER="${MAJOR}.${MINOR}.${PATCH}"
+          SRC=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
+          OUT="xmrig-continued-${VER}-arm64.apk"
+          cp "$SRC" "$OUT"
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          echo "apk=$OUT" >> "$GITHUB_OUTPUT"
+          sha256sum "$OUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.artifact.outputs.ver }}
+          name: v${{ steps.artifact.outputs.ver }} — UI redesign (Pool Presets + nav)
+          prerelease: false
+          files: ${{ steps.artifact.outputs.apk }}
+          body: |
+            ## UI redesign
+
+            - Pool Presets: scrollable body, fixed Apply footer, dark elevated sheet + contrast fix
+            - Bottom tabs unified: Miner | Log | Settings
+            - Toast anchored above bottom tabs
+            - Miner dashboard hierarchy / density cleanup
+
+            ### Artifact
+            - `xmrig-continued-${{ steps.artifact.outputs.ver }}-arm64.apk`
+            - arm64-v8a · minifyEnabled false · debug-signed (same as recent continued releases)
+            - Native libs reused from v0.2.4 package (UI-only release)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
