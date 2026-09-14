@@ -5,6 +5,7 @@ import {
 import { useDebouncedCallback } from 'use-debounce';
 import { SettingsCardProps } from '.';
 import { ISettings } from '../../../../core/settings/settings.interface';
+import { tokens } from '../../../../core/theme/tokens';
 
 const SettingsOthersCard:React.FC<SettingsCardProps<ISettings>> = ({
   settings,
@@ -13,20 +14,24 @@ const SettingsOthersCard:React.FC<SettingsCardProps<ISettings>> = ({
   const debouncedUpdate = useDebouncedCallback(onUpdate, 1000);
 
   return (
-    <Card enableShadow>
+    <Card enableShadow backgroundColor={tokens.bg.surface}>
       <View centerV spread padding-20 paddingB-5>
         <Card.Section
           style={{ flexShrink: 1 }}
           content={[
-            { text: 'Other', text65: true, $textDefault: true },
+            {
+              text: 'General',
+              text65: true,
+              color: tokens.text.primary,
+            },
           ]}
         />
       </View>
       <View spread padding-20 paddingT-10>
         <View marginB-10>
           <View flex marginB-5>
-            <Text text75 $textDefault flex column row>Print Time</Text>
-            <Text text100 $textDefault row>
+            <Text text75 color={tokens.text.primary} flex column row>Print Time</Text>
+            <Text text100 color={tokens.text.secondary} row>
               Print hashrate report every specified number of seconds
             </Text>
           </View>
@@ -41,7 +46,7 @@ const SettingsOthersCard:React.FC<SettingsCardProps<ISettings>> = ({
               (value) => debouncedUpdate({ printTime: value })
             }
             />
-            <Text marginL-10>
+            <Text marginL-10 color={tokens.text.primary}>
               {settings.printTime}
               s
             </Text>
@@ -49,8 +54,8 @@ const SettingsOthersCard:React.FC<SettingsCardProps<ISettings>> = ({
         </View>
         <View marginB-10>
           <View flex marginB-5>
-            <Text text75 $textDefault flex column row>Donate Level</Text>
-            <Text text100 $textDefault row>
+            <Text text75 color={tokens.text.primary} flex column row>Donate Level</Text>
+            <Text text100 color={tokens.text.secondary} row>
               Donate level percentage, min 1% (1 minute in 100 minutes)
             </Text>
           </View>
@@ -65,7 +70,7 @@ const SettingsOthersCard:React.FC<SettingsCardProps<ISettings>> = ({
               (value) => debouncedUpdate({ donation: value })
             }
             />
-            <Text marginL-10>
+            <Text marginL-10 color={tokens.text.primary}>
               {settings.donation}
               %
             </Text>
