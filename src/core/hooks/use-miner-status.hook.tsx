@@ -11,6 +11,9 @@ export const useMinerStatus = () => {
   const [isWorkingState, setIsWorkingState] = React.useState<boolean>(false);
 
   React.useEffect(() => {
+    if (!XMRigForAndroid) {
+      return undefined;
+    }
     const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
     const onStatusChangeSub:EmitterSubscription = MinerEmitter.addListener('onStatusChange', (event: IMinerStatusChangeEvent) => {

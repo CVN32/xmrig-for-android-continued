@@ -2,6 +2,7 @@ package com.xmrigforandroid;
 
 import com.facebook.react.ReactActivity;
 
+
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
@@ -30,6 +31,7 @@ public class MainActivity extends ReactActivity {
     super.onCreate(null);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     applyOpaqueSystemBars();
+    requestNotificationPermissionIfNeeded();
 
     IntentFilter batterFilters = new IntentFilter();
     batterFilters.addAction(Intent.ACTION_BATTERY_CHANGED);
@@ -73,6 +75,22 @@ public class MainActivity extends ReactActivity {
       int flags = decor.getSystemUiVisibility();
       flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
       decor.setSystemUiVisibility(flags);
+    }
+  }
+
+  /** Best-effort POST_NOTIFICATIONS request on API 33+; safe no-op if denied.
+   *  String constant (not Manifest.permission.*) so compileSdk 31 still builds. */
+  private void requestNotificationPermissionIfNeeded() {
+    if (Build.VERSION.SDK_INT < 33) {
+      return;
+    }
+    try {
+      final String postNotifications = "android.permission.POST_NOTIFICATIONS";
+      if (checkSelfPermission(postNotifications) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        requestPermissions(new String[]{postNotifications}, 1001);
+      }
+    } catch (Exception ignored) {
+      // Keep launch resilient if permission APIs are unavailable.
     }
   }
 }

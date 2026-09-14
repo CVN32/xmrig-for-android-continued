@@ -14,7 +14,6 @@ import {
 } from 'react-native-ui-lib';
 import uuid from 'react-native-uuid';
 import { useColorScheme } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { useMiner } from '../../../core/hooks/use-miner.hook';
 import { SessionDataContext } from '../../../core/session-data/session-data.context';
 import { WorkingState } from '../../../core/session-data/session-data.interface';
@@ -26,7 +25,6 @@ import { ConfigurationMode } from '../../../core/settings/settings.interface';
 
 export const MinerControl:React.FC<ViewProps> = () => {
   const toaster = useToaster();
-  const navigation = useNavigation<any>();
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
 
   const { workingState } = React.useContext(SessionDataContext);
@@ -65,14 +63,19 @@ export const MinerControl:React.FC<ViewProps> = () => {
     }
   }, [settings, configsEmpty, startWithSelectedConfiguration, toaster]);
 
-  React.useEffect(() => settingsDispatcher({
-    type: SettingsActionType.SET_SELECTED_CONFIGURAION,
-    value: selectedConfiguration,
-  }), [selectedConfiguration]);
+  // Push local picker selection into settings only when it actually differs
+  React.useEffect(() => {
+    if (selectedConfiguration !== settings.selectedConfiguration) {
+      settingsDispatcher({
+        type: SettingsActionType.SET_SELECTED_CONFIGURAION,
+        value: selectedConfiguration,
+      });
+    }
+  }, [selectedConfiguration]);
 
   // Keep local selection in sync when settings change externally
   React.useEffect(() => {
-    if (settings.selectedConfiguration && settings.selectedConfiguration !== selectedConfiguration) {
+    if (settings.selectedConfiguration !== selectedConfiguration) {
       setSelectedConfiguration(settings.selectedConfiguration);
     }
   }, [settings.selectedConfiguration]);
@@ -90,12 +93,12 @@ export const MinerControl:React.FC<ViewProps> = () => {
     setSelectedConfiguration(id);
     setShowAddModal(false);
     toaster({
-      message: `Added '${name}'`,
+      message: `Added '${name}' — edit it from Configurations when ready`,
       position: 'top',
       preset: Incubator.ToastPresets.SUCCESS,
     });
-    navigation.navigate('Configuration', { id });
-  }, [settingsDispatcher, toaster, navigation]);
+    // Do not auto-navigate to Configuration edit (can crash if route params race)
+  }, [settingsDispatcher, toaster]);
 
   const cardBorderColor = React.useMemo<string>(() => {
     if (!settings.selectedConfiguration) {

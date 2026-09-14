@@ -38,6 +38,7 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
     var xmrigAPIService: IXMRigAPIService? = null
     val configBuilder = XMRigConfigBuilder(this.reactApplicationContext.applicationContext)
     var isMining = false
+    @Volatile private var miningForegroundStarted = false
 
     private val serverConnection = object: ServiceConnection {
         override fun onServiceConnected(className: ComponentName?, service: IBinder?) {
@@ -66,6 +67,9 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
     };
 
     init {
+        // Bind only at module load. Do NOT startForegroundService here — on Android 14+
+        // starting an FGS of type dataSync without FOREGROUND_SERVICE_DATA_SYNC (or before
+        // the user starts mining) crashes the process right after launch.
         runBlocking(Dispatchers.IO) {
             arrayOf(
                     MiningService::class.java,
@@ -73,19 +77,41 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
                     ThermalService::class.java
             ).onEach {
                 launch(newSingleThreadContext("Thread-"+it.toString())) {
-                    val intent = Intent(context, it)
-                    context.bindService(intent, serverConnection, Context.BIND_AUTO_CREATE)
-                    when(it) {
-                        MiningService::class.java -> {
-                            context.startForegroundService(intent)
+                    try {
+                        val intent = Intent(context, it)
+                        context.bindService(intent, serverConnection, Context.BIND_AUTO_CREATE)
+                        when(it) {
+                            MiningService::class.java -> {
+                                // Deferred: FGS starts only when user starts mining.
+                                Log.d("XMRigForAndroid", "MiningService bound; FGS deferred until start()")
+                            }
+                            else -> {
+                                try {
+                                    context.startService(intent)
+                                } catch (e: Exception) {
+                                    Log.e("XMRigForAndroid", "startService failed for $it", e)
+                                }
+                            }
                         }
-                        else -> {
-                            context.startService(intent)
-                        }
+                    } catch (e: Exception) {
+                        Log.e("XMRigForAndroid", "Service bind/start failed for $it", e)
                     }
-
                 }
             }
+        }
+    }
+
+    private fun ensureMiningForegroundService() {
+        if (miningForegroundStarted) {
+            return
+        }
+        try {
+            val intent = Intent(reactApplicationContext, MiningService::class.java)
+            reactApplicationContext.startForegroundService(intent)
+            miningForegroundStarted = true
+            Log.d(this.name, "MiningService foreground service started")
+        } catch (e: Exception) {
+            Log.e(this.name, "startForegroundService(MiningService) failed", e)
         }
     }
 
@@ -184,6 +210,8 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
         val data = jsonFormat.decodeFromString<Configuration>(configurationJSON)
 
         Log.d(this.name, "Start XMRig (${data.xmrig_fork.toString().lowercase(Locale.getDefault())}) $configurationJSON")
+
+        ensureMiningForegroundService()
 
         //val configBuilder = XMRigConfigBuilder(this.reactApplicationContext.applicationContext)
         configBuilder.reset()

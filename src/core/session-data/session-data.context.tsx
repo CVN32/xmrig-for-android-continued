@@ -87,6 +87,9 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
   }, [isWorking, minerData?.paused]);
 
   React.useEffect(() => {
+    if (!XMRigForAndroid) {
+      return undefined;
+    }
     const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
     const onLogSub:EmitterSubscription = MinerEmitter.addListener('onLog', (data:IXMRigLogEvent) => {
@@ -131,7 +134,7 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
     return () => {
       onLogSub.remove();
       onConfigUpdateSub.remove();
-      XMRigForAndroid.stop();
+      XMRigForAndroid?.stop();
     };
   }, []);
 

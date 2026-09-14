@@ -90,9 +90,12 @@ export const SettingsContextProvider:React.FC = ({ children }) => {
     console.log('settings effect - SettingsStorageInit');
     SettingsStorageInit(initialState)
       .then((value:ISettings) => {
+        const configurations = Array.isArray(value?.configurations)
+          ? value.configurations
+          : [];
         const fixValue:ISettings = {
           ...value,
-          configurations: value.configurations.map((item) => {
+          configurations: configurations.map((item) => {
             if (item.mode === ConfigurationMode.SIMPLE) {
               return merge(
                 {
@@ -121,7 +124,18 @@ export const SettingsContextProvider:React.FC = ({ children }) => {
         });
         setAsyncLoaderState(true);
       })
-      .catch((e) => console.log(e));
+      .catch((e) => {
+        console.log(e);
+        // Do not hang on init failure — surface defaults with ready:true
+        settingsDispatcher({
+          type: SettingsActionType.SET,
+          value: {
+            ...initialState,
+            ready: true,
+          },
+        });
+        setAsyncLoaderState(true);
+      });
   }, []);
 
   useEffect(() => {

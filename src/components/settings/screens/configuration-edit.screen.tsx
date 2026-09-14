@@ -27,13 +27,17 @@ const ConfigurationEditScreen = () => {
   const [changesCount, setChangesCount] = React.useState<number>(0);
 
   const { settings, settingsDispatcher } = React.useContext(SettingsContext);
-  const savedConfiguration = React.useMemo(() => settings.configurations.find(
-    (item) => item.id === (route.params as any).id,
-  ), [settings.configurations]);
+  const configId = (route.params as any)?.id as string | undefined;
+  const savedConfiguration = React.useMemo(() => {
+    if (!configId) {
+      return undefined;
+    }
+    return settings.configurations.find((item) => item.id === configId);
+  }, [settings.configurations, configId]);
   const [configuration, setConfiguration] = React.useState<Configuration>();
   React.useEffect(() => {
     setConfiguration(savedConfiguration);
-  }, [route.params]);
+  }, [configId, savedConfiguration]);
 
   React.useEffect(() => {
     if (configuration !== savedConfiguration) {

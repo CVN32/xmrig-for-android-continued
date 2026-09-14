@@ -11,6 +11,9 @@ export const useThermal = () => {
   const [cpuTemperature, setCpuTemperature] = React.useState<number>(0.0);
 
   React.useEffect(() => {
+    if (!XMRigForAndroid) {
+      return undefined;
+    }
     const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
     const onThermalSub:EmitterSubscription = MinerEmitter.addListener('onThermal', (event: IThermalEvent) => {

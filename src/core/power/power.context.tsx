@@ -19,6 +19,9 @@ export const PowerContextProvider:React.FC = ({ children }) => {
   const [isPowerConnected, setIsPowerConnected] = React.useState<boolean>(false);
 
   React.useEffect(() => {
+    if (!XMRigForAndroid) {
+      return undefined;
+    }
     const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
     const onPowerEventSub:EmitterSubscription = MinerEmitter.addListener('onPower', (event: PowerEvent) => {

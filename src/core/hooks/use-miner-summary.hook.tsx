@@ -85,6 +85,9 @@ export const useMinerSummary = () => {
   const [state, setState] = React.useState<IMinerSummary | null>(null);
 
   React.useEffect(() => {
+    if (!XMRigForAndroid) {
+      return undefined;
+    }
     const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
     const onSummarySub:EmitterSubscription = MinerEmitter.addListener('onSummary', (event: IMinerSummaryEvent) => {
