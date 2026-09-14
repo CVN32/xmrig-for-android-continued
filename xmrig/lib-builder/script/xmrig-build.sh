@@ -72,7 +72,7 @@ for arch in ${archs[@]}; do
         -DOPENSSL_SSL_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libssl.a" \
         -DOPENSSL_CRYPTO_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libcrypto.a" \
         -DOPENSSL_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/include " \
-        ../../ && make -j 4  && make install && make clean
+        ../../ && make -j 4         && mkdir -p "/lib"         && cp -f xmrig "/lib/xmrig"         && make clean
 
 done
 

@@ -37,7 +37,23 @@ public class MainActivity extends ReactActivity {
     batterFilters.addAction(Intent.ACTION_BATTERY_OKAY);
     batterFilters.addAction(Intent.ACTION_POWER_CONNECTED);
     batterFilters.addAction(Intent.ACTION_POWER_DISCONNECTED);
-    registerReceiver(new PowerMonitorReceiver(), batterFilters);
+    PowerMonitorReceiver powerReceiver = new PowerMonitorReceiver();
+    // API 33+ requires RECEIVER_NOT_EXPORTED (0x4). Reflect so compileSdk 31 still builds.
+    if (Build.VERSION.SDK_INT >= 33) {
+      try {
+        getClass()
+            .getMethod(
+                "registerReceiver",
+                android.content.BroadcastReceiver.class,
+                IntentFilter.class,
+                int.class)
+            .invoke(this, powerReceiver, batterFilters, 0x4);
+      } catch (Exception e) {
+        registerReceiver(powerReceiver, batterFilters);
+      }
+    } else {
+      registerReceiver(powerReceiver, batterFilters);
+    }
   }
 
   /** Opaque light chrome so content is not drawn under translucent bars (invisible UI on Android 12+). */

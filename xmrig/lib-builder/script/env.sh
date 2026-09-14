@@ -2,9 +2,13 @@ realpath() {
     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
 }
 
-export NDK_VERSION=`$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed | grep "ndk;" |  head -n 1 | sed -E 's/(.*)(ndk\/)([0-9\.])/\3/' | xargs`
+# Prefer project ndkVersion (AGP/root build.gradle); fall back to first installed
+export NDK_VERSION="${NDK_VERSION:-21.4.7075529}"
+if [ ! -d "${ANDROID_HOME}/ndk/${NDK_VERSION}" ]; then
+  export NDK_VERSION=`$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed | grep "ndk;" |  head -n 1 | sed -E 's/(.*)(ndk\/)([0-9\.])/\3/' | xargs`
+fi
 export ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/${NDK_VERSION}"
-export TOOLCHAINS_PATH=$(python script/toolchains_path.py --ndk ${ANDROID_NDK_HOME})
+export TOOLCHAINS_PATH=$(python3 script/toolchains_path.py --ndk ${ANDROID_NDK_HOME})
 export ANDROID_NDK_ROOT="${ANDROID_HOME}/ndk/${NDK_VERSION}"
 
 export ANDROID_NDK_ROOT=`realpath $ANDROID_NDK_ROOT`
