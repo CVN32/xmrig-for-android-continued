@@ -1,0 +1,21 @@
+{
+  "_comment": "Suggested ISimpleConfiguration.properties.cpu values for high-clock ARM64 big.LITTLE on AC. Not a benchmark result.",
+  "cpu": {
+    "random_x_mode": "fast",
+    "max_threads_hint": 75,
+    "yield": false,
+    "priority": 3
+  },
+  "battery_fallback_cpu": {
+    "random_x_mode": "light",
+    "max_threads_hint": 50,
+    "yield": true,
+    "priority": 1
+  },
+  "config_builder_keys": {
+    "random_x_mode": "randomx.mode",
+    "max_threads_hint": "cpu.max-threads-hint",
+    "yield": "cpu.yield",
+    "priority": "cpu.priority"
+  }
+}

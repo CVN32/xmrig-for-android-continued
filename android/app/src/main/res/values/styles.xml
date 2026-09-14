@@ -1,0 +1,15 @@
+<resources>
+
+    <!-- Light opaque chrome: DayNight + black text alone made UI look transparent/invisible on Android 12+ dark mode. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:textColor">#FF111111</item>
+        <item name="android:windowBackground">#FFF5F5F5</item>
+        <item name="android:statusBarColor">#FFF5F5F5</item>
+        <item name="android:navigationBarColor">#FFF5F5F5</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="colorPrimary">#FF424242</item>
+        <item name="colorPrimaryDark">#FFE0E0E0</item>
+        <item name="colorAccent">#FF1976D2</item>
+    </style>
+
+</resources>
