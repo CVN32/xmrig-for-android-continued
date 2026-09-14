@@ -1,6 +1,6 @@
 {
   "name": "xmrig-for-android",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Continued fork of XMRig for Android — React Native UI wrapping xmrig binaries (target xmrig v6.26.0)",
   "author": {
     "name": "Garry Lachman",

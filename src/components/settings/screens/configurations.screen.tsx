@@ -21,7 +21,8 @@ const ConfigurationsScreen: React.FC = () => {
     <View bg-screenBG flex>
       <AddConfigurationsModal
         onAdd={(name, mode) => {
-          const id = `${uuid.v4()}`;
+          const id = String(uuid.v4());
+          // ADD_CONFIGURATION also sets selectedConfiguration to this id
           settingsDispatcher({
             type: SettingsActionType.ADD_CONFIGURATION,
             value: {

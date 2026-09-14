@@ -87,33 +87,45 @@ export const SettingsContextProvider:React.FC = ({ children }) => {
   const [asyncLoaderState, setAsyncLoaderState] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log('settings effect - SettingsStorageInit');
     SettingsStorageInit(initialState)
       .then((value:ISettings) => {
         const configurations = Array.isArray(value?.configurations)
           ? value.configurations
           : [];
+        const normalizedConfigurations = configurations.map((item) => {
+          const withId = {
+            ...item,
+            id: item?.id != null ? String(item.id) : String(uuid.v4()),
+          };
+          if (withId.mode === ConfigurationMode.SIMPLE) {
+            return merge(
+              {
+                ...defaultSimpleConfiguration,
+                ...defaultConfiguration,
+              },
+              withId,
+            );
+          }
+
+          return {
+            ...defaultConfiguration,
+            ...withId,
+            mode: withId.mode as any === 'advance' ? ConfigurationMode.ADVANCE : withId.mode,
+          };
+        });
+        const selectedRaw = value?.selectedConfiguration != null
+          && value.selectedConfiguration !== ''
+          ? String(value.selectedConfiguration)
+          : undefined;
+        const selectedConfiguration = selectedRaw
+          && normalizedConfigurations.some((c) => String(c.id) === selectedRaw)
+          ? selectedRaw
+          : undefined;
         const fixValue:ISettings = {
           ...value,
-          configurations: configurations.map((item) => {
-            if (item.mode === ConfigurationMode.SIMPLE) {
-              return merge(
-                {
-                  ...defaultSimpleConfiguration,
-                  ...defaultConfiguration,
-                },
-                item,
-              );
-            }
-
-            return {
-              ...defaultConfiguration,
-              ...item,
-              mode: item.mode as any === 'advance' ? ConfigurationMode.ADVANCE : item.mode,
-            };
-          }),
+          configurations: normalizedConfigurations,
+          selectedConfiguration,
         };
-        console.log('SET SET', fixValue.configurations[0]);
         settingsDispatcher({
           type: SettingsActionType.SET,
           value: {
@@ -124,8 +136,7 @@ export const SettingsContextProvider:React.FC = ({ children }) => {
         });
         setAsyncLoaderState(true);
       })
-      .catch((e) => {
-        console.log(e);
+      .catch((_e) => {
         // Do not hang on init failure — surface defaults with ready:true
         settingsDispatcher({
           type: SettingsActionType.SET,
@@ -139,7 +150,6 @@ export const SettingsContextProvider:React.FC = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    console.log('state changed', settings, 'asyncLoaderState: ', asyncLoaderState);
     if (asyncLoaderState) {
       SettingsStorageSave(settings);
     }

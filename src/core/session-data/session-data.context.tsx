@@ -98,14 +98,15 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
     });
 
     const onConfigUpdateSub:EmitterSubscription = MinerEmitter.addListener('onConfigUpdate', (data) => {
-      console.log('onConfigUpdate', data.config);
-      const cConfig:Configuration | undefined = settings.configurations.find(
-        (config) => config.id === settings.selectedConfiguration,
-      );
+      const selectedId = settings.selectedConfiguration
+        ? String(settings.selectedConfiguration)
+        : undefined;
+      const cConfig:Configuration | undefined = selectedId
+        ? settings.configurations.find((config) => String(config.id) === selectedId)
+        : undefined;
       if (cConfig && cConfig.mode === ConfigurationMode.SIMPLE) {
         try {
           const parsedConfig = JSON.parse(data.config);
-          console.log('parsedConfig', parsedConfig);
           settingsDispatcher({
             type: SettingsActionType.UPDATE_CONFIGURATION,
             value: {
@@ -116,8 +117,8 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
               },
             },
           });
-        } catch (e) {
-          console.log('ERROR PARSE ALGO PERF', e);
+        } catch (_e) {
+          // ignore algo-perf parse errors
         }
       }
       if (cConfig && cConfig.mode === ConfigurationMode.ADVANCE) {

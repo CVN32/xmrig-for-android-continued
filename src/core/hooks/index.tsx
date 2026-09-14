@@ -21,3 +21,7 @@ export {
 export type {
   IMinerSummary,
 } from './use-miner-summary.hook';
+
+export {
+  usePoolStatus,
+} from './use-pool-status.hook';

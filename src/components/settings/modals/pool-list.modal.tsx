@@ -1,9 +1,11 @@
 import _ from 'lodash';
 import React from 'react';
 import {
-  Button, Chip, Colors, Incubator, Picker, Typography, View,
+  Button, Chip, Colors, Incubator, Picker, Typography, View, Text,
 } from 'react-native-ui-lib';
 import { IConfiguratioPropertiesPool } from '../../../core/settings/settings.interface';
+import { usePoolStatus } from '../../../core/hooks/use-pool-status.hook';
+import { PoolProbeResult, PoolProbeStatus } from '../../../core/pools/pool-status';
 import {
   C3Pool,
   Hashcity,
@@ -25,6 +27,30 @@ export type PoolListModalProps = Incubator.DialogProps & {
   onAdd: (pool: IConfiguratioPropertiesPool) => void;
 }
 
+const statusChipColor = (status: PoolProbeStatus): string => {
+  switch (status) {
+    case 'online':
+      return Colors.$backgroundSuccessHeavy || '#2e7d32';
+    case 'checking':
+      return Colors.$backgroundWarningHeavy || '#f9a825';
+    default:
+      return Colors.$backgroundDangerHeavy || '#c62828';
+  }
+};
+
+const statusChipLabel = (r?: PoolProbeResult): string => {
+  if (!r || r.status === 'checking') {
+    return 'Checking';
+  }
+  if (r.status === 'online') {
+    return `Online · ${r.latencyMs ?? '?'}ms`;
+  }
+  if (r.status === 'offline') {
+    return 'Offline';
+  }
+  return 'Error';
+};
+
 const PoolListModal:React.FC<PoolListModalProps> = (
   {
     onAdd,
@@ -41,6 +67,10 @@ const PoolListModal:React.FC<PoolListModalProps> = (
     sslEnabled: false,
   });
 
+  // Only probe while the dialog is visible
+  const visible = Boolean((rest as any).visible);
+  const { results: poolStatus } = usePoolStatus(visible);
+
   const onChange = React.useCallback(
     (state: IPoolState) => setPool({
       hostname: state.hostname,
@@ -56,6 +86,11 @@ const PoolListModal:React.FC<PoolListModalProps> = (
   const poolInfo = React.useMemo<IPredefinedPoolInfo>(
     () => predefinedPools[selected as PredefinedPoolName],
     [selected],
+  );
+
+  const selectedStatus = React.useMemo(
+    () => poolStatus.find((r) => r.id === selected),
+    [poolStatus, selected],
   );
 
   const hide = (isOk: boolean = false) => {
@@ -107,12 +142,36 @@ const PoolListModal:React.FC<PoolListModalProps> = (
           </View>
 
           {poolInfo && (
-            <View row paddingB-10 spread>
+            <View row paddingB-10 spread centerV>
               <Chip size={10} label={`${poolInfo.fee}% fee`} />
               <Chip size={10} label={`${poolInfo.threshold} min. payout`} marginH-10 />
               <Chip size={10} label={poolInfo.method} />
+              <Chip
+                size={10}
+                label={statusChipLabel(selectedStatus)}
+                backgroundColor={statusChipColor(selectedStatus?.status || 'checking')}
+                labelStyle={{ color: Colors.white }}
+                marginL-10
+              />
             </View>
           )}
+
+          {/* Compact live status list */}
+          <View paddingB-10>
+            <Text text90 $textNeutral marginB-6>Pool status (live)</Text>
+            <View row style={{ flexWrap: 'wrap' }}>
+              {poolStatus.map((r) => (
+                <Chip
+                  key={r.id}
+                  label={`${r.displayName}: ${statusChipLabel(r)}`}
+                  backgroundColor={statusChipColor(r.status)}
+                  labelStyle={{ color: Colors.white, fontSize: 10 }}
+                  containerStyle={{ marginRight: 6, marginBottom: 6 }}
+                  onPress={() => setSelected(r.id)}
+                />
+              ))}
+            </View>
+          </View>
 
           <View spread paddingB-20>
             {selected && selected === PredefinedPoolName.MoneroOcean

@@ -20,6 +20,7 @@ export enum PredefinedPoolName {
     nanopool = 'nanopool',
     C3Pool = 'c3pool',
     XMRPoolEU = 'xmrpooleu',
+    /** Historical misspelling kept as storage key; display name is HashVault */
     HashVault = 'hashvalt',
     Hashcity = 'hashcity',
 }

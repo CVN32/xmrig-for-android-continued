@@ -10,6 +10,7 @@ import { IPowerSettings, IThermalSettings } from '../../../core/settings/setting
 const SettingsPowerCard = React.lazy(() => import('../containers/settings/settings-power.card'));
 const SettingsThermalCard = React.lazy(() => import('../containers/settings/settings-thermal.card'));
 const SettingsOthersCard = React.lazy(() => import('../containers/settings/settings-others.card'));
+const SettingsPoolStatusCard = React.lazy(() => import('../containers/settings/settings-pool-status.card'));
 
 const actionsButtonDefault: ButtonProps = {
   label: 'Menu',
@@ -127,6 +128,8 @@ const SettingsScreen: React.FC = () => {
           <SettingsThermalCard settings={localSettings?.thermal} onUpdate={handleThermalUpdate} />
           <View height={10} />
           <SettingsOthersCard settings={localSettings} onUpdate={handleLocalUpdate} />
+          <View height={10} />
+          <SettingsPoolStatusCard />
         </ScrollView>
       </View>
       <FloatingButton

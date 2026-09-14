@@ -55,15 +55,15 @@ export const ConfigurationsListView:React.FC<ConfigurationsListViewProps> = ({
                   <ListItem.Part column right>
                     <Checkbox
                       color={
-                        selected.includes(item.id as string)
+                        selected.includes(String(item.id))
                           ? Colors.$backgroundDangerHeavy : Colors.$backgroundPrimaryHeavy
                       }
-                      value={selected.includes(item.id as string)}
+                      value={selected.includes(String(item.id))}
                       onValueChange={() => {
-                        if (selected.includes(item.id as string)) {
-                          setSelected((oldVal) => oldVal.filter((v) => v !== item.id));
+                        if (selected.includes(String(item.id))) {
+                          setSelected((oldVal) => oldVal.filter((v) => v !== String(item.id)));
                         } else {
-                          setSelected((oldVal) => [...oldVal, item.id as string]);
+                          setSelected((oldVal) => [...oldVal, String(item.id)]);
                         }
                       }}
                     />
@@ -72,7 +72,7 @@ export const ConfigurationsListView:React.FC<ConfigurationsListViewProps> = ({
               </ListItem>
             </View>
           )}
-          keyExtractor={(item: Configuration) => `configution-${item.id}`}
+          keyExtractor={(item: Configuration) => `configuration-${String(item.id)}`}
         />
       </View>
     </Card>

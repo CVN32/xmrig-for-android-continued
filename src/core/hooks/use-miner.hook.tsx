@@ -1,9 +1,11 @@
 import React from 'react';
 import _ from 'lodash';
 import { NativeModules } from 'react-native';
-import { SettingsContext } from '../settings';
+import { Incubator } from 'react-native-ui-lib';
+import { SettingsActionType, SettingsContext } from '../settings';
 import { Configuration } from '../settings/settings.interface';
 import ConfigBuilder from '../xmrig-config/config-builder';
+import { useToaster } from './use-toaster/use-toaster.hook';
 
 const { XMRigForAndroid } = NativeModules;
 
@@ -16,41 +18,70 @@ export interface IMinerSendCompiguration {
 }
 
 export const useMiner = () => {
-  const { settings } = React.useContext(SettingsContext);
+  const toaster = useToaster();
+  const { settings, settingsDispatcher } = React.useContext(SettingsContext);
 
   const startHandler = React.useCallback((config: IMinerSendCompiguration) => {
+    if (!XMRigForAndroid?.start) {
+      return;
+    }
     XMRigForAndroid.start(JSON.stringify(config));
   }, []);
 
   const startWithSelectedConfigurationHandler = React.useCallback(() => {
-    if (settings.selectedConfiguration) {
-      const cConfig:Configuration | undefined = settings.configurations.find(
-        (config) => config.id === settings.selectedConfiguration,
-      );
-
-      if (cConfig) {
-        const sConfig = ConfigBuilder.build(cConfig);
-        if (sConfig) {
-          const sConfigPartial: Partial<IMinerSendCompiguration> = _.pick(
-            cConfig,
-            ['id', 'name', 'mode', 'xmrig_fork'],
-          );
-          sConfig.setProps({
-            'donate-level': settings.donation,
-            'print-time': settings.printTime,
-          });
-
-          startHandler({
-            ...sConfigPartial,
-            config: sConfig.getConfigBase64(),
-          } as IMinerSendCompiguration);
-        }
-      }
+    const selectedId = settings.selectedConfiguration
+      ? String(settings.selectedConfiguration)
+      : undefined;
+    if (!selectedId) {
+      return;
     }
-  }, [settings]);
+
+    const cConfig: Configuration | undefined = settings.configurations.find(
+      (config) => String(config.id) === selectedId,
+    );
+
+    if (!cConfig) {
+      // Stale selection (deleted / mismatched id) — clear so picker recovers
+      settingsDispatcher({
+        type: SettingsActionType.SET_SELECTED_CONFIGURAION,
+        value: undefined,
+      });
+      toaster({
+        message: 'Selected configuration not found — pick another',
+        position: 'top',
+        preset: Incubator.ToastPresets.FAILURE,
+      });
+      return;
+    }
+
+    const sConfig = ConfigBuilder.build(cConfig);
+    if (!sConfig) {
+      toaster({
+        message: 'Could not build miner config for this profile',
+        position: 'top',
+        preset: Incubator.ToastPresets.FAILURE,
+      });
+      return;
+    }
+
+    const sConfigPartial: Partial<IMinerSendCompiguration> = _.pick(
+      cConfig,
+      ['id', 'name', 'mode', 'xmrig_fork'],
+    );
+    sConfig.setProps({
+      'donate-level': settings.donation,
+      'print-time': settings.printTime,
+    });
+
+    startHandler({
+      ...sConfigPartial,
+      id: String(cConfig.id),
+      config: sConfig.getConfigBase64(),
+    } as IMinerSendCompiguration);
+  }, [settings, settingsDispatcher, startHandler, toaster]);
 
   const stopHandler = React.useCallback(() => {
-    XMRigForAndroid.stop();
+    XMRigForAndroid?.stop?.();
   }, []);
 
   return {

@@ -27,12 +27,15 @@ const ConfigurationEditScreen = () => {
   const [changesCount, setChangesCount] = React.useState<number>(0);
 
   const { settings, settingsDispatcher } = React.useContext(SettingsContext);
-  const configId = (route.params as any)?.id as string | undefined;
+  const configIdRaw = (route.params as any)?.id;
+  const configId = configIdRaw != null && configIdRaw !== ''
+    ? String(configIdRaw)
+    : undefined;
   const savedConfiguration = React.useMemo(() => {
     if (!configId) {
       return undefined;
     }
-    return settings.configurations.find((item) => item.id === configId);
+    return settings.configurations.find((item) => String(item.id) === configId);
   }, [settings.configurations, configId]);
   const [configuration, setConfiguration] = React.useState<Configuration>();
   React.useEffect(() => {
@@ -50,7 +53,10 @@ const ConfigurationEditScreen = () => {
   const handleUpdate = (data: Configuration) => {
     settingsDispatcher({
       type: SettingsActionType.UPDATE_CONFIGURATION,
-      value: data,
+      value: {
+        ...data,
+        id: data?.id != null ? String(data.id) : data.id,
+      },
     });
     navigation.goBack();
   };
@@ -76,6 +82,47 @@ const ConfigurationEditScreen = () => {
       });
     }
   }, [actionsVisible]);
+
+  // Defer "not found" briefly so navigate-right-after-ADD does not flash empty
+  // while the SettingsContext commit with the new id is still landing.
+  const [missingConfirmed, setMissingConfirmed] = React.useState(false);
+  React.useEffect(() => {
+    if (!configId || !settings.ready) {
+      setMissingConfirmed(false);
+      return undefined;
+    }
+    if (savedConfiguration) {
+      setMissingConfirmed(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setMissingConfirmed(true), 100);
+    return () => clearTimeout(t);
+  }, [configId, savedConfiguration, settings.ready]);
+
+  if (!settings.ready || (!savedConfiguration && configId && !missingConfirmed)) {
+    return (
+      <View bg-screenBG flex center>
+        <LoaderScreen />
+      </View>
+    );
+  }
+
+  // Missing / deleted config — friendly empty, no crash
+  if (!configId || !savedConfiguration) {
+    return (
+      <View bg-screenBG flex center paddingH-24>
+        <Text text60 $textDefault center marginB-8>Configuration not found</Text>
+        <Text text80 $textNeutral center marginB-24>
+          This profile may have been deleted or the link is outdated.
+        </Text>
+        <Button
+          size={Button.sizes.medium}
+          label="Go back"
+          onPress={() => navigation.goBack()}
+        />
+      </View>
+    );
+  }
 
   return (
     <View bg-screenBG flex>
@@ -161,10 +208,11 @@ const ConfigurationEditScreen = () => {
             if (configuration?.id) {
               settingsDispatcher({
                 type: SettingsActionType.DELETE_CONFIGURATIONS,
-                value: [configuration?.id],
+                value: [String(configuration.id)],
               });
             }
             setActionVisible(false);
+            navigation.goBack();
           },
           backgroundColor: Colors.$backgroundDangerHeavy,
           link: false,

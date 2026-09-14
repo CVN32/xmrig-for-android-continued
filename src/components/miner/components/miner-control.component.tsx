@@ -31,10 +31,22 @@ export const MinerControl:React.FC<ViewProps> = () => {
   const { startWithSelectedConfiguration, stop: handleStop } = useMiner();
 
   const { settings, settingsDispatcher } = React.useContext(SettingsContext);
-  const [selectedConfiguration, setSelectedConfiguration] = React.useState<string | undefined>(
-    settings.selectedConfiguration,
-  );
   const [showAddModal, setShowAddModal] = React.useState(false);
+
+  // Single source of truth: settings.selectedConfiguration (always string | undefined)
+  const selectedId = settings.selectedConfiguration
+    ? String(settings.selectedConfiguration)
+    : undefined;
+
+  const selectedLabel = React.useMemo(() => {
+    if (!selectedId) {
+      return undefined;
+    }
+    const found = settings.configurations.find(
+      (config) => String(config.id) === selectedId,
+    );
+    return found?.name;
+  }, [settings.configurations, selectedId]);
 
   const isWorking = React.useMemo<boolean>(
     () => workingState !== WorkingState.NOT_WORKING,
@@ -44,7 +56,7 @@ export const MinerControl:React.FC<ViewProps> = () => {
   const configsEmpty = _.isEmpty(settings.configurations);
 
   const handleStart = React.useCallback(() => {
-    if (!settings.selectedConfiguration) {
+    if (!selectedId) {
       if (configsEmpty) {
         toaster({
           message: 'Add a configuration first',
@@ -61,27 +73,19 @@ export const MinerControl:React.FC<ViewProps> = () => {
     } else {
       startWithSelectedConfiguration();
     }
-  }, [settings, configsEmpty, startWithSelectedConfiguration, toaster]);
+  }, [selectedId, configsEmpty, startWithSelectedConfiguration, toaster]);
 
-  // Push local picker selection into settings only when it actually differs
-  React.useEffect(() => {
-    if (selectedConfiguration !== settings.selectedConfiguration) {
-      settingsDispatcher({
-        type: SettingsActionType.SET_SELECTED_CONFIGURAION,
-        value: selectedConfiguration,
-      });
-    }
-  }, [selectedConfiguration]);
-
-  // Keep local selection in sync when settings change externally
-  React.useEffect(() => {
-    if (settings.selectedConfiguration !== selectedConfiguration) {
-      setSelectedConfiguration(settings.selectedConfiguration);
-    }
-  }, [settings.selectedConfiguration]);
+  const handlePickerChange = React.useCallback((value: any) => {
+    const id = value == null || value === '' ? undefined : String(value);
+    settingsDispatcher({
+      type: SettingsActionType.SET_SELECTED_CONFIGURAION,
+      value: id,
+    });
+  }, [settingsDispatcher]);
 
   const handleAddConfiguration = React.useCallback((name: string, mode: ConfigurationMode) => {
-    const id = `${uuid.v4()}`;
+    const id = String(uuid.v4());
+    // ADD_CONFIGURATION also sets selectedConfiguration to this id
     settingsDispatcher({
       type: SettingsActionType.ADD_CONFIGURATION,
       value: {
@@ -90,18 +94,16 @@ export const MinerControl:React.FC<ViewProps> = () => {
         mode,
       },
     });
-    setSelectedConfiguration(id);
     setShowAddModal(false);
     toaster({
       message: `Added '${name}' — edit it from Configurations when ready`,
       position: 'top',
       preset: Incubator.ToastPresets.SUCCESS,
     });
-    // Do not auto-navigate to Configuration edit (can crash if route params race)
   }, [settingsDispatcher, toaster]);
 
   const cardBorderColor = React.useMemo<string>(() => {
-    if (!settings.selectedConfiguration) {
+    if (!selectedId) {
       if (configsEmpty) {
         return Colors.$outlineDanger;
       }
@@ -114,7 +116,7 @@ export const MinerControl:React.FC<ViewProps> = () => {
       return Colors.$outlineWarning;
     }
     return Colors.$outlinePrimary;
-  }, [settings.selectedConfiguration, configsEmpty, workingState]);
+  }, [selectedId, configsEmpty, workingState]);
 
   return (
     <>
@@ -162,15 +164,28 @@ export const MinerControl:React.FC<ViewProps> = () => {
             <View flex marginR-10>
               <Picker
                 floatingPlaceholder
-                placeholder={selectedConfiguration ? 'Selected configuration' : 'Select configuration'}
+                placeholder={selectedId ? 'Selected configuration' : 'Select configuration'}
                 topBarProps={{ title: 'Configurations' }}
-                value={selectedConfiguration}
+                value={selectedId}
                 getLabel={
-                  (value) => settings.configurations.find((config) => config.id === value)?.name || 'N/A'
+                  (value) => {
+                    const id = value == null ? '' : String(value);
+                    const found = settings.configurations.find(
+                      (config) => String(config.id) === id,
+                    );
+                    // Prefer live name; never sticky N/A when id exists in list
+                    if (found?.name) {
+                      return found.name;
+                    }
+                    if (selectedId && id === selectedId && selectedLabel) {
+                      return selectedLabel;
+                    }
+                    return id ? `Config ${id.slice(0, 8)}` : 'Select configuration';
+                  }
                 }
                 showSearch
                 searchPlaceholder="Search configurations"
-                onChange={(value: any) => setSelectedConfiguration(value)}
+                onChange={handlePickerChange}
                 style={{ ...Typography.text70, color: Colors.$textDefault }}
                 floatingPlaceholderStyle={{ ...Typography.text80, color: Colors.$textNeutral }}
                 migrate
@@ -178,9 +193,9 @@ export const MinerControl:React.FC<ViewProps> = () => {
               >
                 {_.map(settings.configurations, (item) => (
                   <Picker.Item
-                    key={item?.id}
-                    value={item?.id || ''}
-                    label={item?.name}
+                    key={String(item?.id)}
+                    value={String(item?.id || '')}
+                    label={item?.name || String(item?.id || '')}
                   />
                 ))}
               </Picker>
