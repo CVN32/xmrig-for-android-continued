@@ -6,6 +6,7 @@ import {
 import { Dimensions, ScaledSize } from 'react-native';
 import { Algorithems, Algorithm } from '../../../../../core/settings/settings.interface';
 import { EditSimpleCardProps } from './index';
+import { tokens } from '../../../../../core/theme/tokens';
 
 const screen = Dimensions.get('screen');
 
@@ -33,7 +34,7 @@ export const EditSimpleAlgorithemsCard: React.FC<EditSimpleCardProps> = (
   const renderItem = React.useCallback((item: Algorithm) => (
     <View marginB-5 key={`algo-${item}`} style={{ borderBottomWidth: 1, borderColor: Colors.$outlineDisabled }} marginR-10 paddingB-10>
       <View row flex>
-        <Text text90 $textNeutralLight flex column marginB-5>{item}</Text>
+        <Text text90 color={tokens.text.primary} flex column marginB-5>{item}</Text>
         <Switch
           value={localState.properties?.algos ? localState.properties?.algos[item] : true}
           onValueChange={(value) => setLocalState((oldState) => merge(
@@ -54,13 +55,18 @@ export const EditSimpleAlgorithemsCard: React.FC<EditSimpleCardProps> = (
   return React.useMemo(() => (
     <Card
       enableShadow
+      backgroundColor={tokens.bg.surface}
     >
       <View centerV spread padding-20 paddingB-5>
         <Card.Section
           style={{ flexShrink: 1 }}
           content={[
-            { text: 'Algorithems', text65: true, $textDefault: true },
-            { text: 'Enable/Disable miner supported algorithems, some of the algorithems can casue problems on some devices. If the miner is stuck/crash on some algorithem you can disable these algorithem.', text90: true, $textNeutral: true },
+            { text: 'Algorithems', text65: true, color: tokens.text.primary },
+            {
+              text: 'Enable/Disable miner supported algorithems, some of the algorithems can casue problems on some devices. If the miner is stuck/crash on some algorithem you can disable these algorithem.',
+              text90: true,
+              color: tokens.text.secondary,
+            },
           ]}
         />
       </View>

@@ -32,6 +32,7 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
   }, [localState.properties]);
 
   const [showPoolListDialog, setShowPoolListDialog] = React.useState<boolean>(false);
+  const [poolEpoch, setPoolEpoch] = React.useState(0);
   const [recent, setRecent] = React.useState<string[]>([]);
 
   React.useEffect(() => {
@@ -80,14 +81,22 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
     <>
       <PoolListModal
         onAdd={(pool: IConfiguratioPropertiesPool) => {
-          setLocalState((oldState) => merge(
-            oldState,
-            {
-              properties: {
-                pool,
+          // Replace the whole pool object — lodash merge can leave stale
+          // TextField-internal state when only nested keys change.
+          setLocalState((oldState) => ({
+            ...oldState,
+            properties: {
+              ...oldState.properties,
+              pool: {
+                hostname: pool.hostname ?? '',
+                port: pool.port ?? 0,
+                username: pool.username ?? '',
+                password: pool.password ?? '',
+                sslEnabled: pool.sslEnabled ?? false,
               },
             },
-          ));
+          }));
+          setPoolEpoch((n) => n + 1);
           if (pool.username) {
             rememberWallet(pool.username).then(setRecent);
           }
@@ -126,9 +135,10 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
           <View flex row>
             <View flex-2 marginR-20>
               <Incubator.TextField
+                key={`pool-host-${poolEpoch}`}
                 placeholder="Hostname / IP"
                 floatingPlaceholder
-                value={localState.properties?.pool?.hostname}
+                value={localState.properties?.pool?.hostname ?? ''}
                 onChangeText={(text) => setLocalState((oldState) => merge(
                   oldState,
                   {
@@ -163,9 +173,12 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
             </View>
             <View flex-1>
               <Incubator.TextField
+                key={`pool-port-${poolEpoch}`}
                 placeholder="Port"
                 floatingPlaceholder
-                value={localState.properties?.pool?.port?.toString() || ''}
+                value={localState.properties?.pool?.port != null
+                  ? String(localState.properties.pool.port)
+                  : ''}
                 onChangeText={(text) => setLocalState((oldState) => merge(
                   oldState,
                   {
@@ -210,8 +223,8 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
             />
           </View>
           <Incubator.TextField
-            placeholder="Username"
-            floatingPlaceholder
+            key={`pool-user-${poolEpoch}`}
+            placeholder="Wallet address or username"
             value={localState.properties?.pool?.username}
             onChangeText={setUsername}
             onBlur={() => {
@@ -258,9 +271,10 @@ export const EditSimplePoolCard: React.FC<EditSimpleCardProps> = (
             </ScrollView>
           )}
           <Incubator.TextField
+            key={`pool-pass-${poolEpoch}`}
             placeholder="Password"
             floatingPlaceholder
-            value={localState.properties?.pool?.password}
+            value={localState.properties?.pool?.password ?? ''}
             onChangeText={(text) => setLocalState((oldState) => merge(
               oldState,
               {

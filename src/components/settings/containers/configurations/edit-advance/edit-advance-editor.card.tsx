@@ -8,6 +8,7 @@ import { AnsiComponent } from 'react-native-ansi-view';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useStyledCode } from '../../../../../core/utils/ansi';
 import { EditAdvanceCardProps } from './index';
+import { tokens } from '../../../../../core/theme/tokens';
 
 export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
   { setLocalState, localState },
@@ -34,12 +35,12 @@ export const EditAdvanceEditorCard: React.FC<EditAdvanceCardProps> = (
   }, [code]);
 
   return (
-    <Card style={{ flexGrow: 1 }} useSafeArea>
+    <Card style={{ flexGrow: 1 }} useSafeArea backgroundColor={tokens.bg.surface}>
       <View centerV spread padding-20 paddingB-5>
         <View row>
           <Card.Section
             content={[
-              { text: 'Config JSON', text65: true, $textDefault: true },
+              { text: 'Config JSON', text65: true, color: tokens.text.primary },
             ]}
           />
         </View>

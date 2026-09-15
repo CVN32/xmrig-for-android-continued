@@ -12,6 +12,7 @@ import {
 import { SettingsContext } from '../../../core/settings';
 import { ConfigurationMode } from '../../../core/settings/settings.interface';
 import { getConfigurationNameValidator, getConfigurationValidator } from '../../../core/utils/validators';
+import { sheetBg, textFieldDefaults, tokens } from '../../../core/theme/tokens';
 
 export type AddConfigurationsModalProps = Incubator.DialogProps & {
     onAdd: (name: string, mode: ConfigurationMode) => void;
@@ -21,6 +22,7 @@ const AddConfigurationsModal:React.FC<AddConfigurationsModalProps> = (
   {
     onAdd,
     onDismiss,
+    visible,
     ...rest
   },
 ) => {
@@ -35,36 +37,49 @@ const AddConfigurationsModal:React.FC<AddConfigurationsModalProps> = (
   const [name, setName] = React.useState('');
   const [configMode, setConfigMode] = React.useState<ConfigurationMode>(ConfigurationMode.SIMPLE);
 
-  const isValid = React.useMemo(() => getConfigurationValidator(existsNames).validate({
-    name,
-    mode: configMode,
-  }).error == null, [name, configMode]);
+  React.useEffect(() => {
+    if (visible) {
+      setName('');
+      setConfigMode(ConfigurationMode.SIMPLE);
+    }
+  }, [visible]);
 
-  const RenderRadioGroup = React.useCallback(() => (
-    <RadioGroup
-      onValueChange={(value: ConfigurationMode) => setConfigMode(value)}
-      initialValue={configMode}
-    >
-      <RadioButton label="Simple Mode" value={ConfigurationMode.SIMPLE} marginB-10 />
-      <RadioButton label="Advanced Mode" value={ConfigurationMode.ADVANCE} />
-    </RadioGroup>
-  ), [configMode]);
+  const trimmedName = name.trim();
+  const isValid = React.useMemo(() => getConfigurationValidator(existsNames).validate({
+    name: trimmedName,
+    mode: configMode,
+  }).error == null, [trimmedName, configMode, existsNames]);
 
   return (
     // eslint-disable-next-line react/jsx-props-no-spreading
     <Incubator.Dialog
       onDismiss={onDismiss}
+      visible={visible}
       center
       headerProps={{
         text: {
           title: 'New Configuration',
+          titleStyle: {
+            color: tokens.text.primary,
+            fontSize: tokens.type.title.fontSize,
+            fontWeight: tokens.type.title.fontWeight,
+          },
         },
       }}
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...rest}
-      containerStyle={{ width: '100%', minWidth: 300, minHeight: 350 }}
+      containerStyle={{
+        width: '90%',
+        maxWidth: 420,
+        alignSelf: 'center',
+        minWidth: 280,
+        minHeight: 320,
+        backgroundColor: sheetBg,
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}
     >
-      <View spread flex-1>
+      <View spread flex-1 style={{ backgroundColor: sheetBg }}>
         <View padding-20 style={{ flexGrow: 1 }}>
           <Incubator.TextField
             placeholder="Name"
@@ -73,11 +88,11 @@ const AddConfigurationsModal:React.FC<AddConfigurationsModalProps> = (
             onChangeText={(text) => setName(text)}
             validate={
               (value: string) => getConfigurationNameValidator(existsNames)
-                .validate(value)
+                .validate((value || '').trim())
                 .error === null
             }
             validationMessage={
-              getConfigurationNameValidator(existsNames).validate(name).error?.message
+              getConfigurationNameValidator(existsNames).validate(trimmedName).error?.message
             }
             validateOnChange
             enableErrors
@@ -86,26 +101,44 @@ const AddConfigurationsModal:React.FC<AddConfigurationsModalProps> = (
             maxLength={30}
             fieldStyle={styles.withUnderline}
             hint="Friendly configuration name"
+            // eslint-disable-next-line react/jsx-props-no-spreading
+            {...textFieldDefaults}
           />
-          <Text text85 $textNeutralLight marginT-10 marginB-15>Editor Mode</Text>
+          <Text text85 color={tokens.text.secondary} marginT-10 marginB-15>Editor Mode</Text>
           <RadioGroup
+            initialValue={configMode}
             onValueChange={(value: ConfigurationMode) => setConfigMode(value)}
           >
-            <RadioButton label="Simple Mode" value={ConfigurationMode.SIMPLE} marginB-10 />
-            <RadioButton label="Advanced Mode" value={ConfigurationMode.ADVANCE} />
+            <RadioButton
+              label="Simple Mode"
+              value={ConfigurationMode.SIMPLE}
+              marginB-10
+              labelStyle={{ color: tokens.text.primary }}
+            />
+            <RadioButton
+              label="Advanced Mode"
+              value={ConfigurationMode.ADVANCE}
+              labelStyle={{ color: tokens.text.primary }}
+            />
           </RadioGroup>
         </View>
         <View>
-          <View height={1.5} bg-grey70 />
+          <View height={1.5} style={{ backgroundColor: tokens.border.subtle }} />
           <View paddingV-15 paddingH-20 right row>
             <Button
               disabled={!isValid}
-              onPress={() => onAdd(name, configMode)}
+              onPress={() => onAdd(trimmedName, configMode)}
               marginR-10
               label="Add"
               size={Button.sizes.medium}
+              backgroundColor={tokens.accent}
             />
-            <Button onPress={onDismiss} label="Cancel" backgroundColor={Colors.$backgroundDangerHeavy} size={Button.sizes.medium} />
+            <Button
+              onPress={onDismiss}
+              label="Cancel"
+              backgroundColor={tokens.danger}
+              size={Button.sizes.medium}
+            />
           </View>
         </View>
       </View>
@@ -116,7 +149,7 @@ const AddConfigurationsModal:React.FC<AddConfigurationsModalProps> = (
 const styles = StyleSheet.create({
   withUnderline: {
     borderBottomWidth: 1,
-    borderColor: Colors.$outlineDisabled,
+    borderColor: tokens.border.subtle,
     paddingBottom: 4,
   },
 });

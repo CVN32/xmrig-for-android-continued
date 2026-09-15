@@ -38,13 +38,18 @@ export const SettingsReducer:Reducer<ISettings, ISettingsReducerAction> = (
           ...action.value as Configuration,
         };
 
+      // eslint-disable-next-line no-case-declarations
+      const createdId = `${(newConfig as Configuration).id || uuid.v4()}`;
+      const createdName = ((newConfig as Configuration).name || '').trim() || 'New configuration';
       return {
         ...prevState,
+        selectedConfiguration: createdId,
         configurations: [
           ...prevState.configurations,
           {
             ...newConfig,
-            id: (newConfig as Configuration).id || uuid.v4(),
+            id: createdId,
+            name: createdName,
           },
         ],
       } as ISettings;

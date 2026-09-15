@@ -213,74 +213,94 @@ const MinerScreen = () => {
           </View>
         </View>
 
-        {/* 3. Collapsible worker/config summary */}
-        <Pressable
-          onPress={() => setDetailsOpen((v) => !v)}
-          accessibilityRole="button"
+        {/* 3. Quick actions Start/Stop — above details so expand cannot cover it */}
+        <View style={{ marginBottom: tokens.spacing.md }}>
+          <MinerControl />
+        </View>
+
+        {/* 4. Collapsible worker/config summary (header + body are siblings; body pushes layout) */}
+        <View
           style={{
-            minHeight: 48,
             backgroundColor: chrome.cardBG,
             borderRadius: chrome.radius,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: chrome.border,
-            paddingHorizontal: tokens.spacing.lg,
-            paddingVertical: tokens.spacing.md,
-            marginBottom: tokens.spacing.md,
-            justifyContent: 'center',
+            marginBottom: tokens.spacing.lg,
+            overflow: 'hidden',
           }}
         >
-          <View row spread centerV>
-            <Text style={{ ...tokens.type.section, color: chrome.textColor }}>
-              Worker & config
-            </Text>
-            <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
-              {detailsOpen ? 'Hide' : 'Show'}
-            </Text>
-          </View>
-          {!detailsOpen && (
-            <Text
-              numberOfLines={1}
+          <Pressable
+            onPress={() => setDetailsOpen((v) => !v)}
+            accessibilityRole="button"
+            style={{
+              minHeight: 48,
+              paddingHorizontal: tokens.spacing.lg,
+              paddingVertical: tokens.spacing.md,
+              justifyContent: 'center',
+            }}
+          >
+            <View row spread centerV>
+              <Text style={{ ...tokens.type.section, color: chrome.textColor }}>
+                Worker & config
+              </Text>
+              <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
+                {detailsOpen ? 'Hide' : 'Show'}
+              </Text>
+            </View>
+            {!detailsOpen && (
+              <Text
+                numberOfLines={1}
+                style={{
+                  ...tokens.type.caption,
+                  color: chrome.mutedText,
+                  marginTop: tokens.spacing.xs,
+                }}
+              >
+                {summaryLine}
+              </Text>
+            )}
+          </Pressable>
+          {detailsOpen && (
+            <View
               style={{
-                ...tokens.type.caption,
-                color: chrome.mutedText,
-                marginTop: tokens.spacing.xs,
+                paddingHorizontal: tokens.spacing.lg,
+                paddingBottom: tokens.spacing.md,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: chrome.border,
               }}
             >
-              {summaryLine}
-            </Text>
-          )}
-          {detailsOpen && (
-            <View style={{ marginTop: tokens.spacing.md }}>
-              <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Configuration</Text>
-              <Text
-                style={{
-                  ...tokens.type.body,
-                  color: chrome.textColor,
-                  marginBottom: tokens.spacing.sm,
-                }}
-              >
-                {selectedConfig?.name || '—'}
-              </Text>
-              <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Worker</Text>
-              <Text
-                style={{
-                  ...tokens.type.body,
-                  color: chrome.textColor,
-                  marginBottom: tokens.spacing.sm,
-                }}
-              >
-                {minerData?.worker_id || '—'}
-              </Text>
-              <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Pool</Text>
-              <Text
-                style={{
-                  ...tokens.type.body,
-                  color: chrome.textColor,
-                  marginBottom: tokens.spacing.sm,
-                }}
-              >
-                {pool || '—'}
-              </Text>
+              <View style={{ marginTop: tokens.spacing.md }}>
+                <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Configuration</Text>
+                <Text
+                  style={{
+                    ...tokens.type.body,
+                    color: chrome.textColor,
+                    marginBottom: tokens.spacing.sm,
+                  }}
+                >
+                  {selectedConfig?.name || '—'}
+                </Text>
+                <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Worker</Text>
+                <Text
+                  style={{
+                    ...tokens.type.body,
+                    color: chrome.textColor,
+                    marginBottom: tokens.spacing.sm,
+                  }}
+                >
+                  {minerData?.worker_id || '—'}
+                </Text>
+                <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Pool</Text>
+                <Text
+                  style={{
+                    ...tokens.type.body,
+                    color: chrome.textColor,
+                    marginBottom: tokens.spacing.sm,
+                  }}
+                >
+                  {pool || '—'}
+                </Text>
+              </View>
               <XMRigView
                 workingState={workingState}
                 minerData={minerData}
@@ -288,11 +308,6 @@ const MinerScreen = () => {
               />
             </View>
           )}
-        </Pressable>
-
-        {/* 4. Quick actions Start/Stop */}
-        <View style={{ marginBottom: tokens.spacing.lg }}>
-          <MinerControl />
         </View>
       </ScrollView>
     </View>
