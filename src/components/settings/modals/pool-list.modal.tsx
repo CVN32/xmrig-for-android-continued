@@ -50,9 +50,14 @@ const PoolListModal:React.FC<PoolListModalProps> = (
   const footerBottomInset = Math.max(insets.bottom, tokens.spacing.sm);
   const footerHeight = FOOTER_BASE + footerBottomInset;
 
-  const dialogHeight = React.useMemo(() => {
-    const winH = Dimensions.get('window').height;
-    return Math.min(Math.round(winH * 0.85), 640);
+  const { dialogHeight, dialogWidth, dialogLeftInset } = React.useMemo(() => {
+    const { height: winH, width: winW } = Dimensions.get('window');
+    const height = Math.min(Math.round(winH * 0.85), 640);
+    const width = Math.min(Math.round(winW * 0.9), 420);
+    // Incubator.Dialog wraps content in an absolutely-positioned PanView that
+    // ignores flex alignItems — inset from the left to visually center.
+    const leftInset = Math.max(0, Math.round((winW - width) / 2));
+    return { dialogHeight: height, dialogWidth: width, dialogLeftInset: leftInset };
   }, []);
 
   const bodyMaxHeight = Math.max(180, dialogHeight - HEADER_APPROX - footerHeight);
@@ -170,8 +175,9 @@ const PoolListModal:React.FC<PoolListModalProps> = (
         },
       }}
       containerStyle={{
-        width: '90%',
-        maxWidth: 420,
+        width: dialogWidth,
+        marginLeft: dialogLeftInset,
+        alignSelf: 'center',
         height: dialogHeight,
         backgroundColor: sheetBg,
         borderRadius: 12,

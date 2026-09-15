@@ -22,13 +22,18 @@ const ConfigurationsScreen: React.FC = () => {
       <AddConfigurationsModal
         onAdd={(name, mode) => {
           const id = `${uuid.v4()}`;
+          const trimmed = (name || '').trim() || 'New configuration';
           settingsDispatcher({
             type: SettingsActionType.ADD_CONFIGURATION,
             value: {
               id,
-              name,
+              name: trimmed,
               mode,
             },
+          });
+          settingsDispatcher({
+            type: SettingsActionType.SET_SELECTED_CONFIGURAION,
+            value: id,
           });
           setShowAddNewDialogVisible(false);
           navigation.navigate('Configuration', { id });
