@@ -17,7 +17,7 @@ export const C3Pool:React.FC<IPool> = ({ onChange }) => {
       username: `${wallet}`,
       password: `${worker}${email ? ':' : ''}${email}`,
     });
-  }, [wallet, worker, email]);
+  }, [wallet, worker, email, onChange]);
 
   return (
     <>
@@ -37,7 +37,7 @@ export const C3Pool:React.FC<IPool> = ({ onChange }) => {
         {...poolFieldProps}
       />
       <Incubator.TextField
-        label="EMail"
+        label="Email"
         value={email}
         onChangeText={setEmail}
         floatOnFocus
