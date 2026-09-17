@@ -89,14 +89,18 @@ jobs:
       - name: Assemble arm64 release APK
         env:
           NODE_OPTIONS: --openssl-legacy-provider
+        shell: bash
         run: |
           set -euo pipefail
-          cd android
-          echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          ./gradlew assembleRelease \
-            -PreactNativeArchitectures=arm64-v8a \
-            --no-daemon \
-            --stacktrace
+          mkdir -p build-diagnostics
+          echo "sdk.dir=${ANDROID_HOME}" > android/local.properties
+          (
+            cd android
+            ./gradlew assembleRelease \
+              -PreactNativeArchitectures=arm64-v8a \
+              --no-daemon \
+              --stacktrace
+          ) 2>&1 | tee build-diagnostics/gradle-assemble.log
 
       - name: Upload verification APK
         uses: actions/upload-artifact@v4
@@ -111,6 +115,7 @@ jobs:
         with:
           name: verification-diagnostics
           path: |
+            build-diagnostics/**
             android/app/build/outputs/**
             android/**/*.log
             xmrig/lib-builder/build/**/*.log

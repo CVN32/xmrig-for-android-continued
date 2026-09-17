@@ -7,63 +7,75 @@ on:
     branches:
       - main
 
+env:
+  ANDROID_PLATFORM: android-29
+  NDK_VERSION: 21.4.7075529
+  ARCHS: arm64
+
 jobs:
-  build:
+  release:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          ref: main
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools platforms;android-31 build-tools;31.0.0'
+      - name: Install Android SDK / NDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-31" \
+            "build-tools;31.0.0" \
+            "ndk;${NDK_VERSION}" \
+            "cmake;3.18.1"
 
       - uses: actions/setup-node@v4
         with:
           node-version: "17"
           cache: yarn
 
-      - name: Restore native libs from last arm64 release APK
-        run: |
-          set -euo pipefail
-          curl -fsSL -o /tmp/prev.apk \
-            https://github.com/CVN32/xmrig-for-android-continued/releases/download/v0.2.4/xmrig-continued-0.2.4-arm64.apk
-          mkdir -p /tmp/apkout
-          unzip -qo /tmp/prev.apk 'lib/arm64-v8a/*' -d /tmp/apkout
-          mkdir -p android/app/src/main/jniLibs/arm64-v8a
-          cp /tmp/apkout/lib/arm64-v8a/*.so android/app/src/main/jniLibs/arm64-v8a/
-          ls -la android/app/src/main/jniLibs/arm64-v8a/
-
-      - name: Install JS deps
+      - name: Install JS dependencies
         run: yarn install --frozen-lockfile || yarn install
 
-      - name: Assemble release APK
+      - name: Lint UI and application code
+        run: yarn lint
+
+      - name: Build current native miners
+        run: |
+          set -euo pipefail
+          cd xmrig/lib-builder
+          make all
+          test -x ../../android/app/src/main/jniLibs/arm64-v8a/libxmrig.so
+          test -x ../../android/app/src/main/jniLibs/arm64-v8a/libxmrig-mo.so
+
+      - name: Assemble arm64 release APK
         env:
           NODE_OPTIONS: --openssl-legacy-provider
         run: |
           set -euo pipefail
           cd android
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: Upload gradle logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-logs
-          path: |
-            android/app/build/outputs/**
-            android/**/*.log
-          if-no-files-found: ignore
+          ./gradlew assembleRelease \
+            -PreactNativeArchitectures=arm64-v8a \
+            --no-daemon \
+            --stacktrace
 
       - name: Package artifact
         id: artifact
@@ -78,26 +90,31 @@ jobs:
           cp "$SRC" "$OUT"
           echo "ver=$VER" >> "$GITHUB_OUTPUT"
           echo "apk=$OUT" >> "$GITHUB_OUTPUT"
-          sha256sum "$OUT"
+          sha256sum "$OUT" | tee "${OUT}.sha256"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.artifact.outputs.ver }}
-          name: v${{ steps.artifact.outputs.ver }} — UI redesign (Pool Presets + nav)
+          name: v${{ steps.artifact.outputs.ver }} — reliability and UI repair
           prerelease: false
-          files: ${{ steps.artifact.outputs.apk }}
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.artifact.outputs.apk }}
+            ${{ steps.artifact.outputs.apk }}.sha256
           body: |
-            ## UI redesign
+            ## Reliability and UI repair
 
-            - Pool Presets: scrollable body, fixed Apply footer, dark elevated sheet + contrast fix
-            - Bottom tabs unified: Miner | Log | Settings
-            - Toast anchored above bottom tabs
-            - Miner dashboard hierarchy / density cleanup
+            - Native XMRig binaries rebuilt from current source revisions
+            - Miner lifecycle, service binding and WakeLock fixes
+            - Configuration selection/storage synchronization fixes
+            - Pool preset and configuration editor fixes
+            - Power/thermal state handling fixes
+            - arm64-only APK so unsupported ABIs cannot install a build without miner binaries
 
             ### Artifact
             - `xmrig-continued-${{ steps.artifact.outputs.ver }}-arm64.apk`
-            - arm64-v8a · minifyEnabled false · debug-signed (same as recent continued releases)
-            - Native libs reused from v0.2.4 package (UI-only release)
+            - ABI: `arm64-v8a`
+            - Signing: Android debug keystore (continued-fork CI signing; not a production Play Store key)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

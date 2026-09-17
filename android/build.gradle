@@ -28,6 +28,13 @@ allprojects {
             options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
         }
     }
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            // @react-native-community/blur 3.6.0 still points at the retired
+            // JCenter coordinate. Use the API-compatible JitPack artifact instead.
+            substitute module('com.eightbitlab:blurview') using module('com.github.Dimezis:BlurView:version-1.6.6')
+        }
+    }
     repositories {
         mavenLocal()
         maven {

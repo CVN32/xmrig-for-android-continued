@@ -1,16 +1,16 @@
 {
-  "name": "xmrig-for-android",
-  "version": "0.2.2",
-  "description": "Continued fork of XMRig for Android — React Native UI wrapping xmrig binaries (target xmrig v6.26.0)",
+  "name": "xmrig-for-android-continued",
+  "version": "0.2.8",
+  "description": "Continued fork of XMRig for Android — React Native UI wrapping XMRig binaries (target XMRig v6.26.0)",
   "author": {
     "name": "Garry Lachman",
     "email": "garry@lachman.co",
     "url": "https://github.com/XMRig-for-Android/xmrig-for-android"
   },
   "displayName": "XMRig for Android Continued",
-  "homepage": "https://github.com/XMRig-for-Android/xmrig-for-android",
+  "homepage": "https://github.com/CVN32/xmrig-for-android-continued",
   "repository": {
-    "url": "https://github.com/XMRig-for-Android/xmrig-for-android",
+    "url": "https://github.com/CVN32/xmrig-for-android-continued",
     "type": "git"
   },
   "license": "MIT",

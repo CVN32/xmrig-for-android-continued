@@ -1,7 +1,4 @@
-/**
- * Lightweight pool reachability / latency probes for Pool Presets UI.
- * Stratum ports rarely speak HTTP; a fast connect+fail still counts as online.
- */
+import { NativeModules } from 'react-native';
 
 export type PoolProbeResult = {
   online: boolean;
@@ -15,7 +12,13 @@ export type PoolProbeTarget = {
   port: number;
 };
 
+type NativeProbeResult = {
+  online?: boolean;
+  latencyMs?: number | null;
+};
+
 const DEFAULT_TIMEOUT_MS = 3500;
+const { XMRigForAndroid } = NativeModules;
 
 export async function probePool(
   hostname: string,
@@ -23,38 +26,32 @@ export async function probePool(
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<PoolProbeResult> {
   const checkedAt = Date.now();
-  const start = Date.now();
-  const controller = typeof AbortController !== 'undefined'
-    ? new AbortController()
-    : null;
-  const timer = setTimeout(() => {
-    if (controller) {
-      controller.abort();
-    }
-  }, timeoutMs);
 
-  try {
-    // HEAD to stratum host:port — success or immediate non-timeout failure ⇒ reachable.
-    await fetch(`http://${hostname}:${port}/`, {
-      method: 'HEAD',
-      signal: controller ? controller.signal : undefined,
-    } as RequestInit);
+  if (!XMRigForAndroid?.probeTcp) {
     return {
-      online: true,
-      latencyMs: Date.now() - start,
+      online: false,
+      latencyMs: null,
       checkedAt,
     };
-  } catch (err) {
-    const ms = Date.now() - start;
-    const name = (err as { name?: string })?.name;
-    const aborted = name === 'AbortError';
-    if (aborted || ms >= timeoutMs - 80) {
-      return { online: false, latencyMs: null, checkedAt };
-    }
-    // TCP open then HTTP error (typical for stratum) → treat as online.
-    return { online: true, latencyMs: ms, checkedAt };
-  } finally {
-    clearTimeout(timer);
+  }
+
+  try {
+    const result: NativeProbeResult = await XMRigForAndroid.probeTcp(
+      hostname,
+      port,
+      timeoutMs,
+    );
+    return {
+      online: result.online === true,
+      latencyMs: typeof result.latencyMs === 'number' ? result.latencyMs : null,
+      checkedAt,
+    };
+  } catch {
+    return {
+      online: false,
+      latencyMs: null,
+      checkedAt,
+    };
   }
 }
 
@@ -63,18 +60,17 @@ export async function probePools(
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<Record<string, PoolProbeResult>> {
   const entries = await Promise.all(
-    targets.map(async (t) => {
-      const result = await probePool(t.hostname, t.port, timeoutMs);
-      return [t.key, result] as const;
+    targets.map(async (target) => {
+      const result = await probePool(target.hostname, target.port, timeoutMs);
+      return [target.key, result] as const;
     }),
   );
   return Object.fromEntries(entries);
 }
 
-/** Format chip label: Online·42ms / Offline / … */
 export function formatPoolStatusChip(result?: PoolProbeResult | null): string {
   if (!result) {
-    return '…';
+    return 'Checking…';
   }
   if (!result.online) {
     return 'Offline';
@@ -82,5 +78,5 @@ export function formatPoolStatusChip(result?: PoolProbeResult | null): string {
   if (result.latencyMs == null) {
     return 'Online';
   }
-  return `Online·${result.latencyMs}ms`;
+  return `Online · ${Math.round(result.latencyMs)}ms`;
 }

@@ -8,13 +8,14 @@ type IThermalEvent = {
 }
 
 export const useThermal = () => {
-  const [cpuTemperature, setCpuTemperature] = React.useState<number>(0.0);
+  const [cpuTemperature, setCpuTemperature] = React.useState<number>(Number.NaN);
 
   React.useEffect(() => {
     const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
     const onThermalSub:EmitterSubscription = MinerEmitter.addListener('onThermal', (event: IThermalEvent) => {
-      setCpuTemperature(event.cpuTemperature);
+      const next = Number(event.cpuTemperature);
+      setCpuTemperature(Number.isFinite(next) ? next : Number.NaN);
     });
 
     return () => {

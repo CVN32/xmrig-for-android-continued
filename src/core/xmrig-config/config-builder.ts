@@ -8,6 +8,7 @@ import {
   IAdvanceConfiguration,
   ISimpleConfiguration,
 } from '../settings/settings.interface';
+import { poolValidator } from '../utils/validators';
 import { config as configJson } from './config';
 
 type Pool = {
@@ -30,14 +31,12 @@ class ConfigBuilderPrivate {
   setPool(pool: Partial<Pool>) {
     this.config = {
       ...this.config,
-      ...{
-        pools: [
-          {
-            ...this.config.pools[0],
-            ...pool,
-          },
-        ],
-      },
+      pools: [
+        {
+          ...(this.config.pools?.[0] || {}),
+          ...pool,
+        },
+      ],
     };
   }
 
@@ -58,20 +57,26 @@ class ConfigBuilderPrivate {
 }
 
 export default class ConfigBuilder {
-  public static build(configuration: Configuration): ConfigBuilderPrivate | null {
+  public static build(configuration: Configuration): ConfigBuilderPrivate {
     if (!configuration) {
-      return null;
+      throw new Error('Configuration is missing');
     }
     const pConfig = new ConfigBuilderPrivate();
 
     if (configuration.mode === ConfigurationMode.SIMPLE) {
       const asSimpleConfig: ISimpleConfiguration = _.cloneDeep(configuration);
+      const pool = asSimpleConfig.properties?.pool;
+      const validation = poolValidator.validate(pool || {});
+      if (validation.error) {
+        throw new Error(`Invalid pool configuration: ${validation.error.message}`);
+      }
+
       pConfig.reset();
       pConfig.setPool({
-        user: asSimpleConfig.properties?.pool?.username,
-        pass: asSimpleConfig.properties?.pool?.password,
-        url: `${asSimpleConfig.properties?.pool?.hostname}:${asSimpleConfig.properties?.pool?.port}`,
-        tls: asSimpleConfig.properties?.pool?.sslEnabled,
+        user: pool?.username?.trim(),
+        pass: pool?.password || '',
+        url: `${pool?.hostname?.trim()}:${Number(pool?.port)}`,
+        tls: Boolean(pool?.sslEnabled),
       });
       pConfig.setProps({
         cpu: {
@@ -91,11 +96,16 @@ export default class ConfigBuilder {
       pConfig.setProps({
         'algo-perf': asSimpleConfig.properties?.algo_perf,
       });
+      return pConfig;
     }
 
     if (configuration.mode === ConfigurationMode.ADVANCE) {
       const asAdvancedConfig: IAdvanceConfiguration = _.cloneDeep(configuration);
-      pConfig.setConfig(JSON5.parse(asAdvancedConfig.config || '{}'));
+      const parsed = JSON5.parse(asAdvancedConfig.config || '{}');
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Advanced configuration must be a JSON object');
+      }
+      pConfig.setConfig(parsed);
       pConfig.setProps({
         http: {
           enabled: true,
@@ -103,8 +113,9 @@ export default class ConfigBuilder {
         background: false,
         colors: true,
       });
+      return pConfig;
     }
 
-    return pConfig;
+    throw new Error(`Unsupported configuration mode: ${(configuration as any).mode}`);
   }
 }

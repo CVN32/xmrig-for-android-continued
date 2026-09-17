@@ -12,6 +12,7 @@ import merge from 'lodash/fp/merge';
 import { SettingsActionType } from './settings.actions';
 import {
   Algorithems,
+  Configuration,
   ConfigurationMode,
   IConfiguration,
   ISettings,
@@ -82,65 +83,94 @@ type SettingsContextProps = {
 // @ts-ignore
 export const SettingsContext:Context<SettingsContextProps> = createContext();
 
+const migrateConfiguration = (item: Configuration): Configuration => {
+  const mode = item.mode as any === 'advance' ? ConfigurationMode.ADVANCE : item.mode;
+
+  if (mode === ConfigurationMode.SIMPLE) {
+    return merge(
+      {
+        ...defaultSimpleConfiguration,
+        ...defaultConfiguration,
+      },
+      {
+        ...item,
+        mode,
+      },
+    ) as Configuration;
+  }
+
+  return {
+    ...defaultConfiguration,
+    ...item,
+    mode,
+  } as Configuration;
+};
+
 export const SettingsContextProvider:React.FC = ({ children }) => {
   const [settings, settingsDispatcher] = useReducer(SettingsReducer, initialState);
-  const [asyncLoaderState, setAsyncLoaderState] = useState<boolean>(false);
+  const [storageReady, setStorageReady] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log('settings effect - SettingsStorageInit');
+    let mounted = true;
+
     SettingsStorageInit(initialState)
       .then((value:ISettings) => {
-        const fixValue:ISettings = {
-          ...value,
-          configurations: value.configurations.map((item) => {
-            if (item.mode === ConfigurationMode.SIMPLE) {
-              return merge(
-                {
-                  ...defaultSimpleConfiguration,
-                  ...defaultConfiguration,
-                },
-                item,
-              );
-            }
+        if (!mounted) {
+          return;
+        }
 
-            return {
-              ...defaultConfiguration,
-              ...item,
-              mode: item.mode as any === 'advance' ? ConfigurationMode.ADVANCE : item.mode,
-            };
-          }),
-        };
-        console.log('SET SET', fixValue.configurations[0]);
+        const configurations = Array.isArray(value.configurations)
+          ? value.configurations.map(migrateConfiguration)
+          : [];
+
         settingsDispatcher({
           type: SettingsActionType.SET,
           value: {
             ...initialState,
-            ...fixValue,
+            ...value,
+            configurations,
             ready: true,
           },
         });
-        setAsyncLoaderState(true);
       })
-      .catch((e) => console.log(e));
+      .catch((error) => {
+        console.error('Unable to load settings; using defaults', error);
+        if (mounted) {
+          settingsDispatcher({
+            type: SettingsActionType.SET,
+            value: {
+              ...initialState,
+              ready: true,
+            },
+          });
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setStorageReady(true);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    console.log('state changed', settings, 'asyncLoaderState: ', asyncLoaderState);
-    if (asyncLoaderState) {
-      SettingsStorageSave(settings);
+    if (storageReady && settings.ready) {
+      SettingsStorageSave(settings).catch((error) => {
+        console.error('Unable to save settings', error);
+      });
     }
-  }, [settings]);
+  }, [settings, storageReady]);
+
+  const contextValue = useMemo(
+    () => ({ settings, settingsDispatcher }),
+    [settings, settingsDispatcher],
+  );
 
   return (
-    <SettingsContext.Provider value={
-        useMemo(
-          () => (
-            { settings, settingsDispatcher }
-          ),
-          [settings, settingsDispatcher],
-        )
-      }
-    >
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );

@@ -11,36 +11,63 @@ import {
   ISettingsReducerAction,
 } from './settings.interface';
 
+const normalizeSelectedConfiguration = (
+  configurations: Configuration[],
+  selectedConfiguration?: unknown,
+): string | undefined => {
+  const selectedId = typeof selectedConfiguration === 'string'
+    ? selectedConfiguration
+    : undefined;
+
+  if (selectedId && configurations.some((config) => config.id === selectedId)) {
+    return selectedId;
+  }
+
+  return configurations[0]?.id ? `${configurations[0].id}` : undefined;
+};
+
 export const SettingsReducer:Reducer<ISettings, ISettingsReducerAction> = (
   prevState: ISettings,
   action: ISettingsReducerAction,
 ) => {
   switch (action.type) {
-    case SettingsActionType.SET:
+    case SettingsActionType.SET: {
+      const nextState = action.value as ISettings;
+      const configurations = nextState.configurations || [];
       return {
-        ...action.value as ISettings,
+        ...nextState,
+        configurations,
+        selectedConfiguration: normalizeSelectedConfiguration(
+          configurations,
+          nextState.selectedConfiguration,
+        ),
       } as ISettings;
-    case SettingsActionType.UPDATE:
-      return merge(
-        prevState,
-        action.value,
-      );
-    case SettingsActionType.ADD_CONFIGURATION:
-      // eslint-disable-next-line no-case-declarations
-      const newConfig = (action.value as Configuration).mode === ConfigurationMode.SIMPLE
+    }
+    case SettingsActionType.UPDATE: {
+      const nextState = merge(prevState, action.value) as ISettings;
+      return {
+        ...nextState,
+        selectedConfiguration: normalizeSelectedConfiguration(
+          nextState.configurations,
+          nextState.selectedConfiguration,
+        ),
+      };
+    }
+    case SettingsActionType.ADD_CONFIGURATION: {
+      const incoming = action.value as Configuration;
+      const newConfig = incoming.mode === ConfigurationMode.SIMPLE
         ? {
           ...defaultConfiguration,
           ...defaultSimpleConfiguration,
-          ...action.value as Configuration,
+          ...incoming,
         }
         : {
           ...defaultConfiguration,
-          ...action.value as Configuration,
+          ...incoming,
         };
 
-      // eslint-disable-next-line no-case-declarations
-      const createdId = `${(newConfig as Configuration).id || uuid.v4()}`;
-      const createdName = ((newConfig as Configuration).name || '').trim() || 'New configuration';
+      const createdId = `${newConfig.id || uuid.v4()}`;
+      const createdName = (newConfig.name || '').trim() || 'New configuration';
       return {
         ...prevState,
         selectedConfiguration: createdId,
@@ -53,27 +80,57 @@ export const SettingsReducer:Reducer<ISettings, ISettingsReducerAction> = (
           },
         ],
       } as ISettings;
-    case SettingsActionType.UPDATE_CONFIGURATION:
+    }
+    case SettingsActionType.UPDATE_CONFIGURATION: {
+      const incoming = action.value as IConfiguration;
+      const configurations = prevState.configurations.map((config) => {
+        if (config.id === incoming.id) {
+          return {
+            ...config,
+            ...incoming,
+            id: config.id,
+            name: (incoming.name || config.name || '').trim() || 'New configuration',
+          } as Configuration;
+        }
+        return config;
+      });
       return {
         ...prevState,
-        configurations: prevState.configurations.map((config) => {
-          if (config.id === (action.value as IConfiguration).id) {
-            return action.value;
-          }
-          return config;
-        }),
+        configurations,
+        selectedConfiguration: normalizeSelectedConfiguration(
+          configurations,
+          prevState.selectedConfiguration,
+        ),
       } as ISettings;
-    case SettingsActionType.DELETE_CONFIGURATIONS:
+    }
+    case SettingsActionType.DELETE_CONFIGURATIONS: {
+      const deletedIds = new Set((action.value as string[]).map((id) => `${id}`));
+      const configurations = prevState.configurations.filter(
+        (config) => !deletedIds.has(`${config.id}`),
+      );
       return {
         ...prevState,
-        configurations: prevState.configurations.filter((config) => !(action.value as string[]).includes(`${config.id}`)),
+        configurations,
+        selectedConfiguration: normalizeSelectedConfiguration(
+          configurations,
+          prevState.selectedConfiguration,
+        ),
       } as ISettings;
-    case SettingsActionType.SET_SELECTED_CONFIGURAION:
+    }
+    case SettingsActionType.SET_SELECTED_CONFIGURAION: {
+      const rawValue = action.value as any;
+      const selectedId = typeof rawValue === 'string'
+        ? rawValue
+        : rawValue?.value;
       return {
         ...prevState,
-        selectedConfiguration: action.value,
+        selectedConfiguration: normalizeSelectedConfiguration(
+          prevState.configurations,
+          selectedId,
+        ),
       } as ISettings;
+    }
     default:
+      return prevState;
   }
-  return prevState;
 };

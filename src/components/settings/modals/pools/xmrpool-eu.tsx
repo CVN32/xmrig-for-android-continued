@@ -1,6 +1,8 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, poolFieldProps, sharedStyles, WalletAddressField } from '.';
+import {
+  IPool, poolFieldProps, sharedStyles, WalletAddressField,
+} from '.';
 
 const hostname = 'xmrpool.eu';
 const port = 5555;
@@ -17,7 +19,7 @@ export const XMRPoolEU:React.FC<IPool> = ({ onChange }) => {
       username: `${wallet}${difficulty ? '.' : ''}${difficulty}${worker ? '+' : ''}${worker}`,
       password: 'x',
     });
-  }, [wallet, worker, difficulty]);
+  }, [wallet, worker, difficulty, onChange]);
 
   return (
     <>

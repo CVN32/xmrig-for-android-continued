@@ -1,66 +1,51 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 source script/env.sh
 
-cd $EXTERNAL_LIBS_BUILD_ROOT/libuv
-mkdir build && cd build
+SOURCE_DIR="$EXTERNAL_LIBS_BUILD_ROOT/libuv"
+TOOLCHAIN="$ANDROID_HOME/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake"
+CMAKE="${CMAKE:-$ANDROID_HOME/cmake/3.18.1/bin/cmake}"
+ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-29}"
+IFS=' ' read -r -a archs <<< "${ARCHS:-arm arm64 x86 x86_64}"
 
-TOOLCHAIN=$ANDROID_HOME/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake
-CMAKE=$ANDROID_HOME/cmake/3.18.1/bin/cmake
-ANDROID_PLATFORM=android-29
+if [ ! -x "$CMAKE" ]; then
+  CMAKE="$(command -v cmake)"
+fi
 
-#if [ ! -f "configure" ]; then
-#  ./autogen.sh
-#fi
+for arch in "${archs[@]}"; do
+  case "$arch" in
+    arm) ANDROID_ABI="armeabi-v7a" ;;
+    arm64) ANDROID_ABI="arm64-v8a" ;;
+    x86) ANDROID_ABI="x86" ;;
+    x86_64) ANDROID_ABI="x86_64" ;;
+    *) echo "Unsupported architecture: $arch" >&2; exit 16 ;;
+  esac
 
-archs=(arm arm64 x86 x86_64)
-for arch in ${archs[@]}; do
-    case ${arch} in
-        "arm")
-            target_host=arm-linux-androideabi
-            ANDROID_ABI="armeabi-v7a"
-            ;;
-        "arm64")
-            target_host=aarch64-linux-android
-            ANDROID_ABI="arm64-v8a"
-            ;;
-        "x86")
-            target_host=i686-linux-android
-            ANDROID_ABI="x86"
-            ;;
-        "x86_64")
-            target_host=x86_64-linux-android
-            ANDROID_ABI="x86_64"
-            ;;
-        *)
-            exit 16
-            ;;
-    esac
+  BUILD_DIR="$SOURCE_DIR/build/$ANDROID_ABI"
+  TARGET_DIR="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI"
+  rm -rf "$BUILD_DIR"
+  mkdir -p "$BUILD_DIR" "$TARGET_DIR"
 
-    mkdir -p $EXTERNAL_LIBS_BUILD_ROOT/libuv/build/$ANDROID_ABI
-    cd $EXTERNAL_LIBS_BUILD_ROOT/libuv/build/$ANDROID_ABI
-    
-    TARGET_DIR=$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI
+  echo "Building libuv for $ANDROID_ABI"
+  "$CMAKE" \
+    -S "$SOURCE_DIR" \
+    -B "$BUILD_DIR" \
+    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+    -DANDROID_ABI="$ANDROID_ABI" \
+    -DANDROID_PLATFORM="$ANDROID_PLATFORM" \
+    -DCMAKE_INSTALL_PREFIX="$TARGET_DIR" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DLIBUV_BUILD_TESTS=OFF \
+    -DLIBUV_BUILD_BENCH=OFF
 
-    if [ -f "$TARGET_DIR/lib/libuv.la" ]; then
-      continue
-    fi
+  "$CMAKE" --build "$BUILD_DIR" --parallel "${BUILD_JOBS:-4}"
+  "$CMAKE" --install "$BUILD_DIR"
 
-    mkdir -p $TARGET_DIR
-    echo "- Building for ${arch} (${ANDROID_ABI})"
-
-    $CMAKE -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN \
-        -DANDROID_ABI="$ANDROID_ABI" \
-        -DANDROID_PLATFORM=$ANDROID_PLATFORM \
-        -DCMAKE_INSTALL_PREFIX=$TARGET_DIR \
-        -DBUILD_SHARED_LIBS=OFF \
-        ../../ \
-        && make -j 4 \
-        && make install \
-        && make clean
-
+  test -f "$TARGET_DIR/lib/libuv.a" || {
+    echo "libuv static library was not installed" >&2
+    find "$TARGET_DIR" -maxdepth 3 -type f -print
+    exit 1
+  }
 done
-
-exit 0

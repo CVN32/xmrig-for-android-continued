@@ -1,23 +1,18 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 source script/env.sh
 
-cd $EXTERNAL_LIBS_BUILD_ROOT
-
+cd "$EXTERNAL_LIBS_BUILD_ROOT"
 version="v6.26.0"
 
-if [ ! -d "xmrig" ]; then
-  git clone https://github.com/xmrig/xmrig.git -b ${version}
-  cd ..
-  cd ..
-  patch build/src/xmrig/src/net/strategies/DonateStrategy.cpp ./xmrig.patch --force
+if [ ! -d xmrig/.git ]; then
+  rm -rf xmrig
+  git clone --depth 1 --branch "$version" https://github.com/xmrig/xmrig.git xmrig
 else
-  cd xmrig
-  git checkout ${version}
-  cd ..
-  cd ..
-  cd ..
-  patch build/src/xmrig/src/net/strategies/DonateStrategy.cpp ./xmrig.patch --force
+  git -C xmrig fetch --depth 1 origin "refs/tags/$version:refs/tags/$version" || true
+  git -C xmrig reset --hard
+  git -C xmrig clean -fdx
+  git -C xmrig checkout --force "$version"
 fi

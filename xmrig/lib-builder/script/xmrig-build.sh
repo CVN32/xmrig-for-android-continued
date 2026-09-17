@@ -1,79 +1,63 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 source script/env.sh
 
-cd $EXTERNAL_LIBS_BUILD_ROOT/xmrig
-sed -e "s/pthread rt dl log/dl/g" CMakeLists.txt > TempCMakeLists.txt
-rm -f CMakeLists.txt
-mv TempCMakeLists.txt CMakeLists.txt
-mkdir build && cd build
+SOURCE_DIR="$EXTERNAL_LIBS_BUILD_ROOT/xmrig"
+TOOLCHAIN="$ANDROID_HOME/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake"
+CMAKE="${CMAKE:-$ANDROID_HOME/cmake/3.18.1/bin/cmake}"
+ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-29}"
+IFS=' ' read -r -a archs <<< "${ARCHS:-arm arm64 x86 x86_64}"
 
-TOOLCHAIN=$ANDROID_HOME/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake
-CMAKE=$ANDROID_HOME/cmake/3.18.1/bin/cmake
-ANDROID_PLATFORM=android-29
+if [ ! -x "$CMAKE" ]; then
+  CMAKE="$(command -v cmake)"
+fi
 
-archs=(arm arm64 x86 x86_64)
-for arch in ${archs[@]}; do
-    case ${arch} in
-        "arm")
-            target_host=arm-linux-androideabi
-            ANDROID_ABI="armeabi-v7a"
-            ARM_TARGET=7
-            ;;
-        "arm64")
-            target_host=aarch64-linux-android
-            ANDROID_ABI="arm64-v8a"
-            ARM_TARGET=8
-            ;;
-        "x86")
-            target_host=i686-linux-android
-            ANDROID_ABI="x86"
-            ARM_TARGET=0
-            ;;
-        "x86_64")
-            target_host=x86_64-linux-android
-            ANDROID_ABI="x86_64"
-            ARM_TARGET=0
-            ;;
-        *)
-            exit 16
-            ;;
-    esac
+if grep -q "pthread rt dl log" "$SOURCE_DIR/CMakeLists.txt"; then
+  sed -i.bak 's/pthread rt dl log/dl/g' "$SOURCE_DIR/CMakeLists.txt"
+fi
 
-    mkdir -p $EXTERNAL_LIBS_BUILD_ROOT/xmrig/build/$ANDROID_ABI
-    cd $EXTERNAL_LIBS_BUILD_ROOT/xmrig/build/$ANDROID_ABI
+for arch in "${archs[@]}"; do
+  case "$arch" in
+    arm) ANDROID_ABI="armeabi-v7a" ;;
+    arm64) ANDROID_ABI="arm64-v8a" ;;
+    x86) ANDROID_ABI="x86" ;;
+    x86_64) ANDROID_ABI="x86_64" ;;
+    *) echo "Unsupported architecture: $arch" >&2; exit 16 ;;
+  esac
 
-    TARGET_DIR=$EXTERNAL_LIBS_ROOT/xmrig/$ANDROID_ABI
+  BUILD_DIR="$SOURCE_DIR/build/$ANDROID_ABI"
+  TARGET_DIR="$EXTERNAL_LIBS_ROOT/xmrig/$ANDROID_ABI"
+  rm -rf "$BUILD_DIR"
+  mkdir -p "$BUILD_DIR" "$TARGET_DIR"
 
+  echo "Building XMRig for $ANDROID_ABI"
+  "$CMAKE" \
+    -S "$SOURCE_DIR" \
+    -B "$BUILD_DIR" \
+    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+    -DANDROID_ABI="$ANDROID_ABI" \
+    -DANDROID_PLATFORM="$ANDROID_PLATFORM" \
+    -DCMAKE_INSTALL_PREFIX="$TARGET_DIR" \
+    -DANDROID_CROSS_COMPILE=ON \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DWITH_OPENCL=OFF \
+    -DWITH_CUDA=OFF \
+    -DBUILD_STATIC=OFF \
+    -DWITH_TLS=ON \
+    -DHWLOC_LIBRARY="$EXTERNAL_LIBS_ROOT/hwloc/$ANDROID_ABI/lib/libhwloc.a" \
+    -DHWLOC_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/hwloc/$ANDROID_ABI/include" \
+    -DUV_LIBRARY="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI/lib/libuv.a" \
+    -DUV_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI/include" \
+    -DOPENSSL_SSL_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libssl.a" \
+    -DOPENSSL_CRYPTO_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libcrypto.a" \
+    -DOPENSSL_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/include"
 
-    if [ -f "$TARGET_DIR/lib/xmrig" ]; then
-      continue
-    fi
+  "$CMAKE" --build "$BUILD_DIR" --parallel "${BUILD_JOBS:-4}"
 
-    mkdir -p $TARGET_DIR
-    echo "building for ${arch}"
-
-    $CMAKE -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN \
-        -DANDROID_ABI="$ANDROID_ABI" \
-        -DANDROID_PLATFORM=$ANDROID_PLATFORM \
-        -DCMAKE_INSTALL_PREFIX=$TARGET_DIR \
-        -DANDROID_CROSS_COMPILE=ON \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DWITH_OPENCL=OFF \
-        -DWITH_CUDA=OFF \
-        -DBUILD_STATIC=OFF \
-        -DWITH_TLS=ON \
-        -DHWLOC_LIBRARY="$EXTERNAL_LIBS_ROOT/hwloc/$ANDROID_ABI/lib/libhwloc.a" \
-        -DHWLOC_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/hwloc/$ANDROID_ABI/include " \
-        -DUV_LIBRARY="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI/lib/libuv_a.a" \
-        -DUV_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI/include " \
-        -DOPENSSL_SSL_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libssl.a" \
-        -DOPENSSL_CRYPTO_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libcrypto.a" \
-        -DOPENSSL_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/include " \
-        ../../ && make -j 4         && mkdir -p "/lib"         && cp -f xmrig "/lib/xmrig"         && make clean
-
+  test -x "$BUILD_DIR/xmrig" || {
+    echo "Expected miner binary was not produced: $BUILD_DIR/xmrig" >&2
+    exit 1
+  }
 done
-
-exit 0

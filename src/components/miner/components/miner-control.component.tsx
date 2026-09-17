@@ -1,30 +1,40 @@
 import _ from 'lodash';
 import React from 'react';
-import {
-  Picker,
-  View,
-  Button,
-  ViewProps,
-  Colors,
-  Typography,
-  Incubator,
-  Card,
-  Assets,
-  Text,
-} from 'react-native-ui-lib';
-import uuid from 'react-native-uuid';
-import { useColorScheme } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useColorScheme } from 'react-native';
+import uuid from 'react-native-uuid';
+import {
+  Assets,
+  Button,
+  Card,
+  Colors,
+  Incubator,
+  Picker,
+  Text,
+  Typography,
+  View,
+  ViewProps,
+} from 'react-native-ui-lib';
 import { useMiner } from '../../../core/hooks/use-miner.hook';
+import { useToaster } from '../../../core/hooks/use-toaster/use-toaster.hook';
 import { SessionDataContext } from '../../../core/session-data/session-data.context';
 import { WorkingState } from '../../../core/session-data/session-data.interface';
 import { SettingsActionType, SettingsContext } from '../../../core/settings';
-import { useToaster } from '../../../core/hooks/use-toaster/use-toaster.hook';
+import { ConfigurationMode } from '../../../core/settings/settings.interface';
 import { CHROME } from '../../../core/theme/chrome';
 import AddConfigurationsModal from '../../settings/modals/add-configuration.modal';
-import { ConfigurationMode } from '../../../core/settings/settings.interface';
 
 const TOUCH_MIN = 48;
+
+const pickerValueToId = (value: any): string | undefined => {
+  if (typeof value === 'string') {
+    return value || undefined;
+  }
+  if (value && typeof value.value === 'string') {
+    return value.value || undefined;
+  }
+  return undefined;
+};
 
 export const MinerControl: React.FC<ViewProps> = () => {
   const toaster = useToaster();
@@ -33,49 +43,43 @@ export const MinerControl: React.FC<ViewProps> = () => {
 
   const { workingState } = React.useContext(SessionDataContext);
   const { startWithSelectedConfiguration, stop: handleStop } = useMiner();
-
   const { settings, settingsDispatcher } = React.useContext(SettingsContext);
-  const [selectedConfiguration, setSelectedConfiguration] = React.useState<string | undefined>(
-    settings.selectedConfiguration,
-  );
   const [showAddModal, setShowAddModal] = React.useState(false);
 
-  const isWorking = React.useMemo<boolean>(
-    () => workingState !== WorkingState.NOT_WORKING,
-    [workingState],
+  const { selectedConfiguration } = settings;
+  const isWorking = workingState !== WorkingState.NOT_WORKING;
+  const configsEmpty = _.isEmpty(settings.configurations);
+  const selectedConfigExists = Boolean(
+    selectedConfiguration
+      && settings.configurations.some((config) => config.id === selectedConfiguration),
   );
 
-  const configsEmpty = _.isEmpty(settings.configurations);
-
   const handleStart = React.useCallback(() => {
-    if (!settings.selectedConfiguration) {
-      if (configsEmpty) {
-        toaster({
-          message: 'Add a configuration first',
-          preset: Incubator.ToastPresets.FAILURE,
-        });
-      } else {
-        toaster({
-          message: 'Select a configuration to start',
-          preset: Incubator.ToastPresets.FAILURE,
-        });
-      }
-    } else {
-      startWithSelectedConfiguration();
+    if (!selectedConfigExists) {
+      toaster({
+        message: configsEmpty
+          ? 'Add a configuration first'
+          : 'Select a valid configuration to start',
+        preset: Incubator.ToastPresets.FAILURE,
+      });
+      return;
     }
-  }, [settings, configsEmpty, startWithSelectedConfiguration, toaster]);
 
-  React.useEffect(() => settingsDispatcher({
-    type: SettingsActionType.SET_SELECTED_CONFIGURAION,
-    value: selectedConfiguration,
-  }), [selectedConfiguration]);
-
-  // Keep local selection in sync when settings change externally
-  React.useEffect(() => {
-    if (settings.selectedConfiguration && settings.selectedConfiguration !== selectedConfiguration) {
-      setSelectedConfiguration(settings.selectedConfiguration);
+    const result = startWithSelectedConfiguration();
+    if (!result.ok) {
+      toaster({
+        message: result.error || 'Unable to start miner',
+        preset: Incubator.ToastPresets.FAILURE,
+      });
     }
-  }, [settings.selectedConfiguration]);
+  }, [selectedConfigExists, configsEmpty, startWithSelectedConfiguration, toaster]);
+
+  const handleSelectConfiguration = React.useCallback((value: any) => {
+    settingsDispatcher({
+      type: SettingsActionType.SET_SELECTED_CONFIGURAION,
+      value: pickerValueToId(value),
+    });
+  }, [settingsDispatcher]);
 
   const handleAddConfiguration = React.useCallback((name: string, mode: ConfigurationMode) => {
     const id = `${uuid.v4()}`;
@@ -88,8 +92,6 @@ export const MinerControl: React.FC<ViewProps> = () => {
         mode,
       },
     });
-    // Keep local + global selection in lockstep so Picker never shows N/A
-    setSelectedConfiguration(id);
     settingsDispatcher({
       type: SettingsActionType.SET_SELECTED_CONFIGURAION,
       value: id,
@@ -103,20 +105,14 @@ export const MinerControl: React.FC<ViewProps> = () => {
   }, [settingsDispatcher, toaster, navigation]);
 
   const cardBorderColor = React.useMemo<string>(() => {
-    if (!settings.selectedConfiguration) {
-      if (configsEmpty) {
-        return Colors.$outlineDanger;
-      }
-      return Colors.$outlineWarning;
-    }
-    if (workingState === WorkingState.MINING) {
-      return Colors.$outlinePrimary;
+    if (!selectedConfigExists) {
+      return configsEmpty ? Colors.$outlineDanger : Colors.$outlineWarning;
     }
     if (workingState === WorkingState.PAUSED) {
       return Colors.$outlineWarning;
     }
     return Colors.$outlinePrimary;
-  }, [settings.selectedConfiguration, configsEmpty, workingState]);
+  }, [selectedConfigExists, configsEmpty, workingState]);
 
   return (
     <>
@@ -169,18 +165,13 @@ export const MinerControl: React.FC<ViewProps> = () => {
               topBarProps={{ title: 'Configurations' }}
               value={selectedConfiguration}
               getLabel={(value) => {
-                const id = value != null && typeof value === 'object'
-                  ? (value as { value?: string }).value
-                  : value;
+                const id = pickerValueToId(value);
                 const found = settings.configurations.find((config) => config.id === id);
-                if (found?.name) {
-                  return found.name;
-                }
-                return selectedConfiguration ? 'Loading…' : 'Select configuration';
+                return found?.name || 'Select configuration';
               }}
               showSearch
               searchPlaceholder="Search configurations"
-              onChange={(value: any) => setSelectedConfiguration(value)}
+              onChange={handleSelectConfiguration}
               style={{ ...Typography.text70, color: Colors.$textDefault, minHeight: TOUCH_MIN }}
               floatingPlaceholderStyle={{ ...Typography.text80, color: Colors.$textNeutral }}
               migrate
@@ -188,9 +179,9 @@ export const MinerControl: React.FC<ViewProps> = () => {
             >
               {_.map(settings.configurations, (item) => (
                 <Picker.Item
-                  key={item?.id}
-                  value={item?.id || ''}
-                  label={item?.name}
+                  key={item.id}
+                  value={item.id}
+                  label={item.name}
                 />
               ))}
             </Picker>

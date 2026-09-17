@@ -5,6 +5,7 @@ import { PowerEvent, PowerEventAction } from './power.interface';
 const { XMRigForAndroid } = NativeModules;
 
 type PowerContextType = {
+    ready: boolean;
     batteryLevel: number;
     isLowBattery: boolean;
     isPowerConnected: boolean;
@@ -14,6 +15,7 @@ type PowerContextType = {
 export const PowerContext:React.Context<PowerContextType> = React.createContext();
 
 export const PowerContextProvider:React.FC = ({ children }) => {
+  const [ready, setReady] = React.useState<boolean>(false);
   const [batteryLevel, setBatteryLevel] = React.useState<number>(0);
   const [isLowBattery, setIsLowBattery] = React.useState<boolean>(false);
   const [isPowerConnected, setIsPowerConnected] = React.useState<boolean>(false);
@@ -22,24 +24,28 @@ export const PowerContextProvider:React.FC = ({ children }) => {
     const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
     const onPowerEventSub:EmitterSubscription = MinerEmitter.addListener('onPower', (event: PowerEvent) => {
-      console.log(event);
       switch (event.action) {
         case PowerEventAction.BATTERY_CHANGED:
-          if (event.value) {
-            setBatteryLevel(event.value);
+          if (event.value != null && Number.isFinite(event.value)) {
+            setBatteryLevel(Math.max(0, Math.min(100, event.value)));
           }
+          setReady(true);
           break;
         case PowerEventAction.BATTERY_LOW:
           setIsLowBattery(true);
+          setReady(true);
           break;
         case PowerEventAction.BATTERY_OKAY:
           setIsLowBattery(false);
+          setReady(true);
           break;
         case PowerEventAction.POWER_CONNECTED:
           setIsPowerConnected(true);
+          setReady(true);
           break;
         case PowerEventAction.POWER_DISCONNECTED:
           setIsPowerConnected(false);
+          setReady(true);
           break;
         default:
       }
@@ -50,15 +56,15 @@ export const PowerContextProvider:React.FC = ({ children }) => {
     };
   }, []);
 
+  const value = React.useMemo(() => ({
+    ready,
+    batteryLevel,
+    isLowBattery,
+    isPowerConnected,
+  }), [ready, batteryLevel, isLowBattery, isPowerConnected]);
+
   return (
-    <PowerContext.Provider
-      // eslint-disable-next-line react/jsx-no-constructed-context-values
-      value={{
-        batteryLevel,
-        isLowBattery,
-        isPowerConnected,
-      }}
-    >
+    <PowerContext.Provider value={value}>
       {children}
     </PowerContext.Provider>
   );

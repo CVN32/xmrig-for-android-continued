@@ -1,9 +1,11 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, poolFieldProps, sharedStyles, WalletAddressField } from '.';
+import {
+  IPool, poolFieldProps, sharedStyles, WalletAddressField,
+} from '.';
 
 const hostname = 'gulf.moneroocean.stream';
-const port = 10032;
+const port = 10128;
 
 export const MoneroOcean:React.FC<IPool> = ({ onChange }) => {
   const [wallet, setWallet] = React.useState<string>('');
@@ -17,7 +19,7 @@ export const MoneroOcean:React.FC<IPool> = ({ onChange }) => {
       username: `${wallet}${difficulty ? '+' : ''}${difficulty}`,
       password: `${worker}`,
     });
-  }, [wallet, worker, difficulty]);
+  }, [wallet, worker, difficulty, onChange]);
 
   return (
     <>

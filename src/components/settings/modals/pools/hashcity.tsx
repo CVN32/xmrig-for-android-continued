@@ -1,6 +1,8 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, poolFieldProps, sharedStyles, WalletAddressField } from '.';
+import {
+  IPool, poolFieldProps, sharedStyles, WalletAddressField,
+} from '.';
 
 const hostname = 'xmr.hashcity.org';
 const port = 4444;

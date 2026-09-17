@@ -1,6 +1,8 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, poolFieldProps, sharedStyles, WalletAddressField } from '.';
+import {
+  IPool, poolFieldProps, sharedStyles, WalletAddressField,
+} from '.';
 
 const hostname = 'auto.c3pool.org';
 const port = 19999;
@@ -17,7 +19,7 @@ export const C3Pool:React.FC<IPool> = ({ onChange }) => {
       username: `${wallet}`,
       password: `${worker}${email ? ':' : ''}${email}`,
     });
-  }, [wallet, worker, email]);
+  }, [wallet, worker, email, onChange]);
 
   return (
     <>
@@ -37,7 +39,7 @@ export const C3Pool:React.FC<IPool> = ({ onChange }) => {
         {...poolFieldProps}
       />
       <Incubator.TextField
-        label="EMail"
+        label="Email"
         value={email}
         onChangeText={setEmail}
         floatOnFocus

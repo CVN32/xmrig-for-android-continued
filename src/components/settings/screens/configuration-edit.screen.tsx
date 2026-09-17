@@ -1,4 +1,5 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
+import _ from 'lodash';
 import React, { Suspense } from 'react';
 import {
   Assets, Button, ButtonProps, Colors, FloatingButton, LoaderScreen, Text, View,
@@ -9,7 +10,7 @@ import { Configuration, ConfigurationMode } from '../../../core/settings/setting
 const ConfigurationEditSimple = React.lazy(() => import('../containers/configurations/edit-simple'));
 const ConfigurationEditAdvance = React.lazy(() => import('../containers/configurations/edit-advance'));
 
-const actionsButtonDefault: ButtonProps = {
+const menuOpenButton: ButtonProps = {
   label: 'Menu',
   iconSource: Assets.icons.barsOpen,
   iconStyle: {
@@ -20,58 +21,68 @@ const actionsButtonDefault: ButtonProps = {
   },
 };
 
+const menuCloseButton: ButtonProps = {
+  label: 'Close',
+  iconSource: Assets.icons.barsClose,
+  iconStyle: {
+    width: 15,
+    height: 15,
+    margin: 8,
+    tintColor: Colors.$iconDefaultLight,
+  },
+};
+
 const ConfigurationEditScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
-
-  const [changesCount, setChangesCount] = React.useState<number>(0);
+  const navigation = useNavigation<any>();
+  const routeId = `${(route.params as any)?.id || ''}`;
 
   const { settings, settingsDispatcher } = React.useContext(SettingsContext);
   const savedConfiguration = React.useMemo(() => settings.configurations.find(
-    (item) => item.id === (route.params as any).id,
-  ), [settings.configurations]);
-  const [configuration, setConfiguration] = React.useState<Configuration>();
+    (item) => item.id === routeId,
+  ), [settings.configurations, routeId]);
+
+  const [configuration, setConfiguration] = React.useState<Configuration | undefined>(savedConfiguration);
+  const [actionsVisible, setActionsVisible] = React.useState<boolean>(false);
+
   React.useEffect(() => {
     setConfiguration(savedConfiguration);
-  }, [route.params]);
+    setActionsVisible(false);
+  }, [routeId]);
 
   React.useEffect(() => {
-    if (configuration !== savedConfiguration) {
-      setChangesCount((val) => val + 1);
-    } else {
-      setChangesCount(0);
+    if (!savedConfiguration && settings.ready) {
+      navigation.goBack();
     }
-  }, [configuration]);
+  }, [savedConfiguration, settings.ready, navigation]);
 
-  const handleUpdate = (data: Configuration) => {
+  const hasChanges = React.useMemo(
+    () => Boolean(configuration && savedConfiguration && !_.isEqual(configuration, savedConfiguration)),
+    [configuration, savedConfiguration],
+  );
+
+  const handleUpdate = React.useCallback((data: Configuration) => {
     settingsDispatcher({
       type: SettingsActionType.UPDATE_CONFIGURATION,
       value: data,
     });
     navigation.goBack();
-  };
+  }, [settingsDispatcher, navigation]);
 
-  const [actionsVisible, setActionVisible] = React.useState<boolean>(false);
-  const [actionsButtonProps, setActionButtonProps] = React.useState<ButtonProps>({
-    ...actionsButtonDefault,
-  });
-  React.useEffect(() => {
-    if (actionsVisible) {
-      setActionButtonProps({
-        ...actionsButtonDefault,
-      });
-    } else {
-      setActionButtonProps({
-        iconSource: Assets.icons.barsClose,
-        iconStyle: {
-          width: 15,
-          height: 15,
-          margin: 8,
-          tintColor: Colors.$iconDefaultLight,
-        },
+  const handleDelete = React.useCallback(() => {
+    if (configuration?.id) {
+      settingsDispatcher({
+        type: SettingsActionType.DELETE_CONFIGURATIONS,
+        value: [configuration.id],
       });
     }
-  }, [actionsVisible]);
+    setActionsVisible(false);
+    navigation.goBack();
+  }, [configuration?.id, settingsDispatcher, navigation]);
+
+  if (!configuration) {
+    return <LoaderScreen />;
+  }
 
   return (
     <View bg-screenBG flex>
@@ -83,23 +94,21 @@ const ConfigurationEditScreen = () => {
         paddingB-5
         centerV
       >
-        <View row centerV>
-          <Text text60>{configuration?.name}</Text>
+        <View row centerV flex>
+          <Text text60 numberOfLines={1}>{configuration.name}</Text>
         </View>
         <Button
           size={Button.sizes.small}
-          onPress={() => setActionVisible(!actionsVisible)}
+          onPress={() => setActionsVisible((visible) => !visible)}
           animateLayout
           // eslint-disable-next-line react/jsx-props-no-spreading
-          {...actionsButtonProps}
+          {...(actionsVisible ? menuCloseButton : menuOpenButton)}
         />
       </View>
-      {changesCount > 0 && (
+      {hasChanges && (
         <View padding-10 paddingT-0 center>
           <Text text90 $textDanger>
-            Please save changes (
-            {changesCount}
-            ) using the Menu button
+            Unsaved changes — use Menu to save
           </Text>
         </View>
       )}
@@ -110,7 +119,7 @@ const ConfigurationEditScreen = () => {
         useSafeArea
         style={{ zIndex: 0 }}
       >
-        {configuration?.mode === ConfigurationMode.SIMPLE && (
+        {configuration.mode === ConfigurationMode.SIMPLE && (
           <Suspense fallback={<LoaderScreen />}>
             <ConfigurationEditSimple
               configuration={configuration}
@@ -118,7 +127,7 @@ const ConfigurationEditScreen = () => {
             />
           </Suspense>
         )}
-        {configuration?.mode === ConfigurationMode.ADVANCE && (
+        {configuration.mode === ConfigurationMode.ADVANCE && (
           <Suspense fallback={<LoaderScreen />}>
             <ConfigurationEditAdvance
               configuration={configuration}
@@ -128,20 +137,14 @@ const ConfigurationEditScreen = () => {
         )}
       </View>
       <FloatingButton
-        duration={500}
+        duration={300}
         visible={actionsVisible}
         button={{
           size: Button.sizes.large,
-          disabled: changesCount === 0,
-          onPress: () => {
-            if (configuration) {
-              handleUpdate(configuration);
-              setChangesCount(0);
-            }
-            setActionVisible(false);
-          },
+          disabled: !hasChanges,
+          onPress: () => handleUpdate(configuration),
           backgroundColor: Colors.$backgroundPrimaryHeavy,
-          label: `Save ${changesCount} Changes`,
+          label: 'Save changes',
           iconSource: Assets.icons.save,
           iconStyle: {
             display: 'flex',
@@ -152,16 +155,8 @@ const ConfigurationEditScreen = () => {
         }}
         secondaryButton={{
           size: Button.sizes.medium,
-          label: 'Delete Configuration',
-          onPress: () => {
-            if (configuration?.id) {
-              settingsDispatcher({
-                type: SettingsActionType.DELETE_CONFIGURATIONS,
-                value: [configuration?.id],
-              });
-            }
-            setActionVisible(false);
-          },
+          label: 'Delete configuration',
+          onPress: handleDelete,
           backgroundColor: Colors.$backgroundDangerHeavy,
           link: false,
           animateLayout: true,

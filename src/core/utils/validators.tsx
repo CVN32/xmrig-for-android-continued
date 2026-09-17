@@ -2,10 +2,12 @@ import 'text-encoding-polyfill';
 import Joi from 'joi';
 import { ConfigurationMode, RandomXMode } from '../settings/settings.interface';
 
-export const hostnameValidator = Joi.string().min(3).max(30).required();
-export const usernameValidator = Joi.optional();
-export const passwordValidator = Joi.optional();
-export const portValidator = Joi.number().integer().min(10).max(65550)
+export const hostnameValidator = Joi.string().trim().min(1).max(253)
+  .required();
+export const usernameValidator = Joi.string().trim().min(1).max(256)
+  .required();
+export const passwordValidator = Joi.string().allow('').max(256).optional();
+export const portValidator = Joi.number().integer().min(1).max(65535)
   .required();
 
 export const poolValidator = Joi.object({
@@ -13,10 +15,10 @@ export const poolValidator = Joi.object({
   username: usernameValidator,
   password: passwordValidator,
   port: portValidator,
-  sslEnabled: Joi.boolean(),
+  sslEnabled: Joi.boolean().required(),
 });
 
-export const validateWalletAddress = (addr?:string):boolean => addr != null && /[48][0-9AB][1-9A-HJ-NP-Za-km-z]{93}/.test(addr);
+export const validateWalletAddress = (addr?:string):boolean => addr != null && /^[48][0-9AB][1-9A-HJ-NP-Za-km-z]{93}$/.test(addr.trim());
 
 export const yieldValidator = Joi.boolean().required();
 export const priorityValidator = Joi.number().min(1).max(5).optional();
@@ -40,6 +42,7 @@ export const configurationModeValidator = Joi
 
 export const getConfigurationNameValidator = (names: string[]) => Joi
   .string()
+  .trim()
   .min(1)
   .max(30)
   .custom((value, helper:Joi.CustomHelpers) => {

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Incubator } from 'react-native-ui-lib';
-import { IPool, poolFieldProps, sharedStyles, WalletAddressField } from '.';
+import {
+  IPool, poolFieldProps, sharedStyles, WalletAddressField,
+} from '.';
 
 const hostname = 'pool.hashvault.pro';
-const port = 80;
+const port = 443;
 
 export const HashVault:React.FC<IPool> = ({ onChange }) => {
   const [wallet, setWallet] = React.useState<string>('');
@@ -16,7 +18,7 @@ export const HashVault:React.FC<IPool> = ({ onChange }) => {
       username: `${wallet}`,
       password: `${worker}`,
     });
-  }, [wallet, worker]);
+  }, [wallet, worker, onChange]);
 
   return (
     <>

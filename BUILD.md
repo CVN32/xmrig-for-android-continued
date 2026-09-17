@@ -1,33 +1,63 @@
-# Build XMRig for Android
+# Build XMRig for Android Continued
 
 ## Prerequisites
-* NodeJS v17.1.0
-* [React Native Development Enviroment](https://reactnative.dev/docs/environment-setup)
-* Android Studio
-* Android 10 SDK 29
-* Android SDK Build Tools 29.0.2
-* Android NDK 23.0.7599858
-* Android SDK Command-line Tools 5.0
-* Android SDK Platform-Tools 31.0.3
-* CMake
 
-## Build XMRig
-This script will compile hwloc, libuv and xmrig for each ABI. The execuable will be copied to `jniLibs` folder in android project.
-```
+The release workflow currently uses:
+
+- JDK 17
+- Node.js 17
+- Android platform 31
+- Android Build Tools 31.0.0
+- Android NDK 21.4.7075529
+- CMake 3.18.1
+- Git, Make, Perl and a POSIX shell
+
+Set `ANDROID_HOME` to your Android SDK directory. The native scripts derive the LLVM toolchain from `$ANDROID_HOME/ndk/21.4.7075529`.
+
+## Build native miners
+
+From the repository root:
+
+```bash
 cd xmrig/lib-builder
-make install
+ARCHS=arm64 make all
 ```
 
+`make all` fetches and builds libuv, hwloc, OpenSSL, official XMRig and the MoneroOcean XMRig fork, then installs the produced executables into:
 
-## Build
-Clone the repo
+```text
+android/app/src/main/jniLibs/arm64-v8a/libxmrig.so
+android/app/src/main/jniLibs/arm64-v8a/libxmrig-mo.so
+```
 
-`yarn install`
+To build all ABIs supported by the scripts, omit `ARCHS=arm64`.
 
-Start meteor server
-`yarn start`
+## Build the Android APK
 
-If you use nvm - open Android Studio from terminal after running `nvm use`.
+From the repository root:
 
-Run Android Emulator
-`npx react-native run-android`
+```bash
+yarn install
+cd android
+echo "sdk.dir=${ANDROID_HOME}" > local.properties
+NODE_OPTIONS=--openssl-legacy-provider ./gradlew assembleRelease
+```
+
+The APK is written under `android/app/build/outputs/apk/release/`.
+
+## Development
+
+For Metro / React Native development:
+
+```bash
+yarn install
+yarn start
+```
+
+Then, with an Android device or emulator available:
+
+```bash
+npx react-native run-android
+```
+
+The GitHub `BuildAll` workflow is the release reference: pull requests lint the JavaScript/TypeScript code, rebuild the arm64 miner binaries from source, and assemble a release APK before merge.
