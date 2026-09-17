@@ -46,7 +46,7 @@ export const MinerControl: React.FC<ViewProps> = () => {
   const { settings, settingsDispatcher } = React.useContext(SettingsContext);
   const [showAddModal, setShowAddModal] = React.useState(false);
 
-  const selectedConfiguration = settings.selectedConfiguration;
+  const { selectedConfiguration } = settings;
   const isWorking = workingState !== WorkingState.NOT_WORKING;
   const configsEmpty = _.isEmpty(settings.configurations);
   const selectedConfigExists = Boolean(

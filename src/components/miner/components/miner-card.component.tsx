@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
-import { CHROME } from '../../../core/theme/chrome';
 import {
   Card, CardProps, ViewProps, Badge, View, Colors, BadgeProps,
 } from 'react-native-ui-lib';
+import { CHROME } from '../../../core/theme/chrome';
 
 export type MinerCardProps = ViewProps & {
     title?: string;

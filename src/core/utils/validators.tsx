@@ -2,8 +2,10 @@ import 'text-encoding-polyfill';
 import Joi from 'joi';
 import { ConfigurationMode, RandomXMode } from '../settings/settings.interface';
 
-export const hostnameValidator = Joi.string().trim().min(1).max(253).required();
-export const usernameValidator = Joi.string().trim().min(1).max(256).required();
+export const hostnameValidator = Joi.string().trim().min(1).max(253)
+  .required();
+export const usernameValidator = Joi.string().trim().min(1).max(256)
+  .required();
 export const passwordValidator = Joi.string().allow('').max(256).optional();
 export const portValidator = Joi.number().integer().min(1).max(65535)
   .required();

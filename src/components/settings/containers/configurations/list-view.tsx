@@ -3,12 +3,12 @@ import React from 'react';
 import {
   StyleSheet, FlatList, useColorScheme,
 } from 'react-native';
-import { CHROME } from '../../../../core/theme/chrome';
 import { merge } from 'lodash/fp';
 import {
   Card, ListItem, Text, View, ViewProps, Checkbox, Colors,
 } from 'react-native-ui-lib';
 import _ from 'lodash';
+import { CHROME } from '../../../../core/theme/chrome';
 import { Configuration } from '../../../../core/settings/settings.interface';
 
 type ConfigurationsListViewProps = ViewProps & {
@@ -31,7 +31,9 @@ export const ConfigurationsListView:React.FC<ConfigurationsListViewProps> = ({
       enableShadow={false}
       flex
       backgroundColor={chrome.cardBG}
-      style={{ borderRadius: chrome.radius, borderWidth: StyleSheet.hairlineWidth, borderColor: chrome.border, overflow: 'hidden' }}
+      style={{
+        borderRadius: chrome.radius, borderWidth: StyleSheet.hairlineWidth, borderColor: chrome.border, overflow: 'hidden',
+      }}
     >
       <View>
         <FlatList

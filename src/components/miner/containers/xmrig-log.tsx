@@ -3,8 +3,8 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { View, ViewProps } from 'react-native-ui-lib';
 import { AnsiComponent } from 'react-native-ansi-view';
-import { ILoggerLine } from '../../../core/logger';
 import _ from 'lodash';
+import { ILoggerLine } from '../../../core/logger';
 
 type LogViewProps = ViewProps & {
     data: ILoggerLine[];
