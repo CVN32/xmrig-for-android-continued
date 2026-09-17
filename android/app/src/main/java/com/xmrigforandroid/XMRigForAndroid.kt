@@ -1,5 +1,6 @@
 package com.xmrigforandroid
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -11,7 +12,6 @@ import android.os.IBinder
 import android.os.RemoteException
 import android.util.Log
 import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -53,6 +53,9 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
 
     @Volatile
     private var pendingStart: Pair<String, String>? = null
+
+    @Volatile
+    private var batteryReceiverRegistered = false
 
     private val serverConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName?, service: IBinder?) {
@@ -96,6 +99,15 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
         }
     }
 
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != Intent.ACTION_BATTERY_CHANGED) {
+                return
+            }
+            publishBatteryIntent(intent)
+        }
+    }
+
     init {
         startAndBindServices(context)
     }
@@ -121,6 +133,28 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
             } catch (e: Exception) {
                 Log.e(name, "Failed to start/bind ${serviceClass.name}", e)
             }
+        }
+    }
+
+    private fun publishBatteryIntent(intent: Intent) {
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        if (level >= 0 && scale > 0) {
+            val percent = (level * 100.0f) / scale.toFloat()
+            EventBus.getDefault().post(PowerEvent(PowerEventAction.BATTERY_CHANGED, percent))
+        }
+
+        val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
+        EventBus.getDefault().post(
+            PowerEvent(
+                if (plugged > 0) PowerEventAction.POWER_CONNECTED
+                else PowerEventAction.POWER_DISCONNECTED,
+            ),
+        )
+
+        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+        if (status == BatteryManager.BATTERY_STATUS_FULL) {
+            EventBus.getDefault().post(PowerEvent(PowerEventAction.BATTERY_OKAY))
         }
     }
 
@@ -286,11 +320,30 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this)
         }
+        if (!batteryReceiverRegistered) {
+            try {
+                reactApplicationContext.applicationContext.registerReceiver(
+                    batteryReceiver,
+                    IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                )
+                batteryReceiverRegistered = true
+            } catch (e: Exception) {
+                Log.w(name, "Unable to register battery receiver", e)
+            }
+        }
     }
 
     override fun onCatalystInstanceDestroy() {
         pendingStart = null
         fileObserver.stopWatching()
+        if (batteryReceiverRegistered) {
+            try {
+                reactApplicationContext.applicationContext.unregisterReceiver(batteryReceiver)
+            } catch (e: Exception) {
+                Log.w(name, "Unable to unregister battery receiver", e)
+            }
+            batteryReceiverRegistered = false
+        }
         if (EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().unregister(this)
         }
@@ -300,21 +353,13 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
     @ReactMethod
     fun addListener(eventName: String?) {
         if (eventName == "onPower") {
-            val bm = reactApplicationContext.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-            val batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
             val batteryStatus = reactApplicationContext.applicationContext.registerReceiver(
                 null,
                 IntentFilter(Intent.ACTION_BATTERY_CHANGED),
             )
-            val chargePlug = batteryStatus?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: -1
-
-            EventBus.getDefault().post(PowerEvent(PowerEventAction.BATTERY_CHANGED, batteryLevel))
-            EventBus.getDefault().post(
-                PowerEvent(
-                    if (chargePlug > 0) PowerEventAction.POWER_CONNECTED
-                    else PowerEventAction.POWER_DISCONNECTED,
-                ),
-            )
+            if (batteryStatus != null) {
+                publishBatteryIntent(batteryStatus)
+            }
         }
     }
 
