@@ -25,7 +25,6 @@ type SmallHashrateChartProps = {
 type XMRigViewProps = ViewProps & {
   hashrateHistory: IHashrateHistory;
   minerData: IMinerSummary | null;
-  workingState: string;
 };
 
 /** Secondary stats for collapsible details — max 2 columns, lower chip density. */
