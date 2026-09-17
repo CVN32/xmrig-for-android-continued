@@ -361,7 +361,6 @@ const MinerScreen = () => {
 
               {workingState !== WorkingState.NOT_WORKING && minerData ? (
                 <XMRigView
-                  workingState={workingState}
                   minerData={minerData}
                   hashrateHistory={hashrateTotals}
                 />
