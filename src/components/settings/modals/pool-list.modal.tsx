@@ -5,9 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button, Chip, Incubator, Picker, Typography, View,
 } from 'react-native-ui-lib';
+import { probePools, formatPoolStatusChip } from '../../../core/pools/pool-status';
+import { rememberWallet } from '../../../core/pools/recent-wallets';
 import { IConfiguratioPropertiesPool } from '../../../core/settings/settings.interface';
 import { sheetBg, tokens } from '../../../core/theme/tokens';
-import { rememberWallet } from '../../../core/pools/recent-wallets';
 import {
   C3Pool,
   HashVault,
@@ -29,6 +30,7 @@ export type PoolListModalProps = Incubator.DialogProps & {
 
 const FOOTER_BASE = 56;
 const HEADER_APPROX = 52;
+const PROBE_INTERVAL_MS = 20_000;
 
 const EMPTY_POOL: IConfiguratioPropertiesPool = {
   hostname: '',
@@ -70,16 +72,56 @@ const PoolListModal:React.FC<PoolListModalProps> = (
   }, [winH, winW]);
 
   const bodyMaxHeight = Math.max(180, dialogHeight - HEADER_APPROX - footerHeight);
-
   const [selected, setSelected] = React.useState<string>();
   const [pool, setPool] = React.useState<IConfiguratioPropertiesPool>(EMPTY_POOL);
+  const [statusMap, setStatusMap] = React.useState<Record<
+    string,
+    Awaited<ReturnType<typeof probePools>>[string]
+  >>({});
+
+  const pools = React.useMemo<IPredefinedPool[]>(() => predefinedPoolsList, []);
 
   React.useEffect(() => {
     if (visible) {
       setSelected(undefined);
       setPool({ ...EMPTY_POOL });
+      setStatusMap({});
     }
   }, [visible]);
+
+  React.useEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    let running = false;
+    const run = async () => {
+      if (running) {
+        return;
+      }
+      running = true;
+      try {
+        const results = await probePools(pools.map((item) => ({
+          key: item.name,
+          hostname: item.info.hostname,
+          port: item.info.port,
+        })));
+        if (!cancelled) {
+          setStatusMap(results);
+        }
+      } finally {
+        running = false;
+      }
+    };
+
+    run();
+    const timer = setInterval(run, PROBE_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [visible, pools]);
 
   const onChange = React.useCallback(
     (state: IPoolState) => setPool({
@@ -92,11 +134,11 @@ const PoolListModal:React.FC<PoolListModalProps> = (
     [],
   );
 
-  const pools = React.useMemo<IPredefinedPool[]>(() => predefinedPoolsList, []);
   const poolInfo = React.useMemo<IPredefinedPoolInfo | undefined>(
     () => (selected ? predefinedPools[selected as PredefinedPoolName] : undefined),
     [selected],
   );
+  const selectedStatus = selected ? statusMap[selected] : undefined;
 
   const canApply = Boolean(
     selected
@@ -209,9 +251,23 @@ const PoolListModal:React.FC<PoolListModalProps> = (
               <Chip
                 size={10}
                 label={poolInfo.method}
+                marginR-8
                 marginB-6
                 labelStyle={{ color: tokens.text.primary }}
                 containerStyle={{ borderColor: tokens.border.subtle }}
+              />
+              <Chip
+                size={10}
+                label={formatPoolStatusChip(selectedStatus)}
+                marginB-6
+                labelStyle={{
+                  color: selectedStatus?.online ? tokens.success : tokens.text.secondary,
+                }}
+                containerStyle={{
+                  borderColor: selectedStatus?.online
+                    ? tokens.success
+                    : tokens.border.subtle,
+                }}
               />
             </View>
           )}
