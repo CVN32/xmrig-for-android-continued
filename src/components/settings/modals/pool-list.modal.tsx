@@ -5,7 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button, Chip, Incubator, Picker, Typography, View,
 } from 'react-native-ui-lib';
-import { probePools, formatPoolStatusChip } from '../../../core/pools/pool-status';
+import {
+  formatPoolStatusChip,
+  PoolProbeResult,
+  probePools,
+} from '../../../core/pools/pool-status';
 import { rememberWallet } from '../../../core/pools/recent-wallets';
 import { IConfiguratioPropertiesPool } from '../../../core/settings/settings.interface';
 import { sheetBg, tokens } from '../../../core/theme/tokens';
@@ -74,10 +78,7 @@ const PoolListModal:React.FC<PoolListModalProps> = (
   const bodyMaxHeight = Math.max(180, dialogHeight - HEADER_APPROX - footerHeight);
   const [selected, setSelected] = React.useState<string>();
   const [pool, setPool] = React.useState<IConfiguratioPropertiesPool>(EMPTY_POOL);
-  const [statusMap, setStatusMap] = React.useState<Record<
-    string,
-    Awaited<ReturnType<typeof probePools>>[string]
-  >>({});
+  const [statusMap, setStatusMap] = React.useState<Record<string, PoolProbeResult>>({});
 
   const pools = React.useMemo<IPredefinedPool[]>(() => predefinedPoolsList, []);
 
