@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 source script/env.sh
 
-cd $EXTERNAL_LIBS_BUILD_ROOT
+cd "$EXTERNAL_LIBS_BUILD_ROOT"
+version="v1.52.1"
 
-version="v1.43.0"
-
-if [ ! -d "libuv" ]; then
-  git clone https://github.com/libuv/libuv.git -b ${version}
+if [ ! -d libuv/.git ]; then
+  rm -rf libuv
+  git clone --depth 1 --branch "$version" https://github.com/libuv/libuv.git libuv
 else
-  cd libuv
-  git checkout ${version}
+  git -C libuv fetch --depth 1 origin "refs/tags/$version:refs/tags/$version"
+  git -C libuv checkout --force "$version"
 fi
