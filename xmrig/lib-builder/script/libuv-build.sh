@@ -43,7 +43,7 @@ for arch in "${archs[@]}"; do
   "$CMAKE" --build "$BUILD_DIR" --parallel "${BUILD_JOBS:-4}"
   "$CMAKE" --install "$BUILD_DIR"
 
-  test -f "$TARGET_DIR/lib/libuv_a.a" || {
+  test -f "$TARGET_DIR/lib/libuv.a" || {
     echo "libuv static library was not installed" >&2
     find "$TARGET_DIR" -maxdepth 3 -type f -print
     exit 1
