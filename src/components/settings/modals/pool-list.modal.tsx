@@ -78,16 +78,14 @@ const PoolListModal:React.FC<PoolListModalProps> = ({
     DIALOG_MAX_WIDTH,
     Math.max(280, windowWidth - (tokens.spacing.lg * 2)),
   );
-  const dialogHeight = Math.min(
-    DIALOG_MAX_HEIGHT,
-    Math.max(
-      360,
-      windowHeight
-        - Math.max(insets.top, tokens.spacing.lg)
-        - Math.max(insets.bottom, tokens.spacing.lg)
-        - (tokens.spacing.lg * 2),
-    ),
+  const availableHeight = Math.max(
+    240,
+    windowHeight
+      - Math.max(insets.top, tokens.spacing.lg)
+      - Math.max(insets.bottom, tokens.spacing.lg)
+      - (tokens.spacing.lg * 2),
   );
+  const dialogHeight = Math.min(DIALOG_MAX_HEIGHT, availableHeight);
 
   const [selected, setSelected] = React.useState<string>();
   const [pool, setPool] = React.useState<IConfiguratioPropertiesPool>({ ...EMPTY_POOL });
