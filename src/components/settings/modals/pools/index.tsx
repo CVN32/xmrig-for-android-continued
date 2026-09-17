@@ -46,23 +46,23 @@ export const predefinedPools:IPredefinedPools = {
     hostname: 'gulf.moneroocean.stream', port: 10128,
   },
   [PredefinedPoolName.SupportXMR]: {
-    displayName: 'SupportXMR', fee: 0.6, method: 'PPLNS', threshold: 0.01,
+    displayName: 'SupportXMR', fee: 0.6, method: 'PPLNS', threshold: 0.1,
     hostname: 'pool.supportxmr.com', port: 3333,
   },
   [PredefinedPoolName.nanopool]: {
-    displayName: 'Nanopool', fee: 1, method: 'PPLNS', threshold: 0.1,
+    displayName: 'Nanopool', fee: 1, method: 'PPLNS', threshold: 0.11,
     hostname: 'xmr-eu1.nanopool.org', port: 10300,
   },
   [PredefinedPoolName.C3Pool]: {
-    displayName: 'C3Pool', fee: 0, method: 'PPLNS', threshold: 0.003,
+    displayName: 'C3Pool', fee: 0, method: 'PPLNS', threshold: 0.001,
     hostname: 'auto.c3pool.org', port: 19999,
   },
   [PredefinedPoolName.XMRPoolEU]: {
-    displayName: 'XMRPool EU', fee: 2.5, method: 'PPLNS', threshold: 2,
+    displayName: 'XMRPool EU', fee: 0.9, method: 'PPLNS', threshold: 0.07,
     hostname: 'xmrpool.eu', port: 5555,
   },
   [PredefinedPoolName.HashVault]: {
-    displayName: 'HashVault', fee: 0, method: 'PPLNS', threshold: 0,
+    displayName: 'HashVault', fee: 0.9, method: 'PPLNS', threshold: 0.001,
     hostname: 'pool.hashvault.pro', port: 443,
   },
 };
