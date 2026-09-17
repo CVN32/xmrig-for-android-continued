@@ -1,9 +1,8 @@
 import React, { useCallback, FC } from 'react';
 import {
-  Dimensions,
-  ScaledSize,
   StyleSheet,
   useColorScheme,
+  useWindowDimensions,
 } from 'react-native';
 import _ from 'lodash';
 import prettyBytes from 'pretty-bytes';
@@ -18,8 +17,6 @@ import { MinerCard } from '../components/miner-card.component';
 import { IHashrateHistory } from '../../../core/session-data/session-data.interface';
 import { CHROME } from '../../../core/theme/chrome';
 import { tokens } from '../../../core/theme/tokens';
-
-const screen = Dimensions.get('screen');
 
 type SmallHashrateChartProps = {
   hashrateHistoryData: number[];
@@ -37,23 +34,10 @@ export const XMRigView: React.FC<XMRigViewProps> = ({
   minerData,
 }) => {
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
-  const [dimensions, setDimensions] = React.useState<ScaledSize>({
-    ...screen,
-    width: screen.width - 40,
-  });
-
-  React.useEffect(() => {
-    const subscription = Dimensions.addEventListener(
-      'change',
-      ({ screen: _screen }) => {
-        setDimensions({
-          ..._screen,
-          width: _screen.width - 40,
-        });
-      },
-    );
-    return () => subscription?.remove();
-  });
+  const { width } = useWindowDimensions();
+  // MinerScreen + expanded-details padding consume 64dp in total.
+  // Keeping GridView inside that measured width prevents horizontal clipping.
+  const gridWidth = Math.max(240, width - (tokens.spacing.lg * 4));
 
   const HashrateChart = React.useCallback(() => (
     <View flex>
@@ -142,7 +126,7 @@ export const XMRigView: React.FC<XMRigViewProps> = ({
       items={[
         {
           renderCustomItem: () => (
-            <GridCard title="Brand" text={minerData?.cpu.brand || 'N/A'}>
+            <GridCard title="Brand" text={minerData?.cpu?.brand || 'N/A'}>
               <Card.Image
                 source={Assets.icons.cpu}
                 height={25}
@@ -155,7 +139,7 @@ export const XMRigView: React.FC<XMRigViewProps> = ({
         },
         {
           renderCustomItem: () => (
-            <GridCard title="Cores / Threads" text={`${minerData?.cpu.cores || 'N/A'} / ${minerData?.cpu.threads || 'N/A'}`}>
+            <GridCard title="Cores / Threads" text={`${minerData?.cpu?.cores || 'N/A'} / ${minerData?.cpu?.threads || 'N/A'}`}>
               <Card.Image
                 source={Assets.icons.cpuCore}
                 height={25}
@@ -167,39 +151,39 @@ export const XMRigView: React.FC<XMRigViewProps> = ({
           ),
         },
       ]}
-      viewWidth={dimensions.width}
+      viewWidth={gridWidth}
       numColumns={2}
     />
-  ), [minerData, dimensions.width]);
+  ), [minerData, gridWidth]);
 
   const RenderSharesGrid = React.useCallback(() => (
     <GridView
       items={[
         {
           renderCustomItem: () => (
-            <GridCard title="Difficulty" text={minerData?.results.diff_current || 'N/A'} />
+            <GridCard title="Difficulty" text={minerData?.results?.diff_current || 'N/A'} />
           ),
         },
         {
           renderCustomItem: () => (
             <GridCard
               title="Total Hashes"
-              text={hashrateToString(minerData?.results.hashes_total || 0, true)}
+              text={hashrateToString(minerData?.results?.hashes_total || 0, true)}
             />
           ),
         },
       ]}
       numColumns={2}
-      viewWidth={dimensions.width}
+      viewWidth={gridWidth}
     />
-  ), [minerData, dimensions.width]);
+  ), [minerData, gridWidth]);
 
   const RenderMemoryGrid = React.useCallback(() => (
     <GridView
       items={[
         {
           renderCustomItem: () => (
-            <GridCard title="Free Mem" text={prettyBytes(minerData?.resources.memory.free || 0)}>
+            <GridCard title="Free Mem" text={prettyBytes(minerData?.resources?.memory?.free || 0)}>
               <Card.Image
                 source={Assets.icons.memory}
                 height={25}
@@ -214,7 +198,7 @@ export const XMRigView: React.FC<XMRigViewProps> = ({
           renderCustomItem: () => (
             <GridCard
               title="Res. Mem"
-              text={prettyBytes(minerData?.resources.memory.resident_set_memory || 0)}
+              text={prettyBytes(minerData?.resources?.memory?.resident_set_memory || 0)}
             >
               <Card.Image
                 source={Assets.icons.memory}
@@ -228,9 +212,9 @@ export const XMRigView: React.FC<XMRigViewProps> = ({
         },
       ]}
       numColumns={2}
-      viewWidth={dimensions.width}
+      viewWidth={gridWidth}
     />
-  ), [minerData, dimensions.width]);
+  ), [minerData, gridWidth]);
 
   const RenderHashrateGrid = React.useCallback(() => (
     <GridView
@@ -277,9 +261,9 @@ export const XMRigView: React.FC<XMRigViewProps> = ({
         },
       ]}
       numColumns={2}
-      viewWidth={dimensions.width}
+      viewWidth={gridWidth}
     />
-  ), [minerData, dimensions.width, hashrateHistory]);
+  ), [minerData, gridWidth, hashrateHistory]);
 
   return (
     <>
