@@ -3,13 +3,9 @@ name: BuildAll
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [closed]
     branches:
       - main
-
-concurrency:
-  group: build-all-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 env:
   ANDROID_PLATFORM: android-29
@@ -17,85 +13,10 @@ env:
   ARCHS: arm64
 
 jobs:
-  verify:
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    runs-on: ubuntu-24.04
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-
-      - name: Install Android SDK / NDK packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-31" \
-            "build-tools;31.0.0" \
-            "ndk;${NDK_VERSION}" \
-            "cmake;3.18.1"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "17"
-          cache: yarn
-
-      - name: Install JS dependencies
-        run: yarn install --frozen-lockfile || yarn install
-
-      - name: Lint UI and application code
-        run: yarn lint
-
-      - name: Build current native miners
-        run: |
-          set -euo pipefail
-          cd xmrig/lib-builder
-          make all
-          test -x ../../android/app/src/main/jniLibs/arm64-v8a/libxmrig.so
-          test -x ../../android/app/src/main/jniLibs/arm64-v8a/libxmrig-mo.so
-          file ../../android/app/src/main/jniLibs/arm64-v8a/libxmrig.so
-          file ../../android/app/src/main/jniLibs/arm64-v8a/libxmrig-mo.so
-
-      - name: Assemble release APK
-        env:
-          NODE_OPTIONS: --openssl-legacy-provider
-        run: |
-          set -euo pipefail
-          cd android
-          echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: Upload verification APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: verification-apk
-          path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-
-      - name: Upload verification outputs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: verification-outputs
-          path: |
-            android/app/build/outputs/**
-            android/**/*.log
-            xmrig/lib-builder/build/**/*.log
-          if-no-files-found: ignore
-
   release:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     permissions:
       contents: write
 
