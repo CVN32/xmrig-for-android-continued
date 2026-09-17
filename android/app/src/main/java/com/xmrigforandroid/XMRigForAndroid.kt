@@ -10,6 +10,7 @@ import android.os.BatteryManager
 import android.os.FileObserver
 import android.os.IBinder
 import android.os.RemoteException
+import android.os.SystemClock
 import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -36,6 +37,8 @@ import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import java.io.File
 import java.lang.Exception
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.Locale
 
 class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
@@ -293,6 +296,37 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
         } catch (e: Exception) {
             promise.reject("availableProcessors", e)
         }
+    }
+
+    @ReactMethod
+    fun probeTcp(host: String, port: Int, timeoutMs: Int, promise: Promise) {
+        if (host.isBlank() || port !in 1..65535) {
+            promise.reject("probeTcp", "Invalid host or port")
+            return
+        }
+
+        val timeout = timeoutMs.coerceIn(250, 10000)
+        Thread {
+            val startedAt = SystemClock.elapsedRealtime()
+            try {
+                Socket().use { socket ->
+                    socket.connect(InetSocketAddress(host, port), timeout)
+                }
+                val payload = Arguments.createMap()
+                payload.putBoolean("online", true)
+                payload.putDouble(
+                    "latencyMs",
+                    (SystemClock.elapsedRealtime() - startedAt).toDouble(),
+                )
+                promise.resolve(payload)
+            } catch (e: Exception) {
+                Log.d(name, "TCP probe failed for $host:$port", e)
+                val payload = Arguments.createMap()
+                payload.putBoolean("online", false)
+                payload.putNull("latencyMs")
+                promise.resolve(payload)
+            }
+        }.start()
     }
 
     @ReactMethod
