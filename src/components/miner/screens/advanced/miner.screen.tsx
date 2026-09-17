@@ -46,7 +46,7 @@ type DetailRowProps = {
   mono?: boolean;
 };
 
-const DetailRow: React.FC<DetailRowProps> = ({ label, value, mono = false }) => {
+const DetailRow: React.FC<DetailRowProps> = ({ label, value, mono }) => {
   const chrome = CHROME.dark;
   return (
     <View style={styles.detailRow}>
@@ -66,6 +66,10 @@ const DetailRow: React.FC<DetailRowProps> = ({ label, value, mono = false }) => 
       </Text>
     </View>
   );
+};
+
+DetailRow.defaultProps = {
+  mono: false,
 };
 
 const MinerScreen = () => {
@@ -99,6 +103,10 @@ const MinerScreen = () => {
   const configuredPoolEndpoint = configuredPool?.hostname
     ? `${configuredPool.hostname}${configuredPool.port ? `:${configuredPool.port}` : ''}`
     : null;
+  let configuredSsl = '—';
+  if (configuredPool) {
+    configuredSsl = configuredPool.sslEnabled ? 'Enabled' : 'Disabled';
+  }
 
   const liveHashrate = hashrateToString(_.last(hashrateTotals.historyCurrent) || 0, true);
   const accepted = minerData?.connection?.accepted ?? 0;
@@ -338,7 +346,7 @@ const MinerScreen = () => {
                 />
                 <DetailRow
                   label="SSL"
-                  value={configuredPool ? (configuredPool.sslEnabled ? 'Enabled' : 'Disabled') : '—'}
+                  value={configuredSsl}
                 />
                 <DetailRow
                   label="Active worker"
