@@ -72,7 +72,13 @@ export const MinerControl: React.FC<ViewProps> = () => {
       return;
     }
 
-    startWithSelectedConfiguration();
+    const result = startWithSelectedConfiguration();
+    if (!result.ok) {
+      toaster({
+        message: result.error || 'Unable to start miner',
+        preset: Incubator.ToastPresets.FAILURE,
+      });
+    }
   }, [selectedConfigExists, configsEmpty, startWithSelectedConfiguration, toaster]);
 
   React.useEffect(() => {
