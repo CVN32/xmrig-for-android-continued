@@ -26,6 +26,16 @@ import { ConfigurationMode } from '../../../core/settings/settings.interface';
 
 const TOUCH_MIN = 48;
 
+const pickerValueToId = (value: any): string | undefined => {
+  if (typeof value === 'string') {
+    return value || undefined;
+  }
+  if (value && typeof value.value === 'string') {
+    return value.value || undefined;
+  }
+  return undefined;
+};
+
 export const MinerControl: React.FC<ViewProps> = () => {
   const toaster = useToaster();
   const navigation = useNavigation<any>();
@@ -46,36 +56,39 @@ export const MinerControl: React.FC<ViewProps> = () => {
   );
 
   const configsEmpty = _.isEmpty(settings.configurations);
+  const selectedConfigExists = Boolean(
+    settings.selectedConfiguration
+      && settings.configurations.some((config) => config.id === settings.selectedConfiguration),
+  );
 
   const handleStart = React.useCallback(() => {
-    if (!settings.selectedConfiguration) {
-      if (configsEmpty) {
-        toaster({
-          message: 'Add a configuration first',
-          preset: Incubator.ToastPresets.FAILURE,
-        });
-      } else {
-        toaster({
-          message: 'Select a configuration to start',
-          preset: Incubator.ToastPresets.FAILURE,
-        });
-      }
-    } else {
-      startWithSelectedConfiguration();
+    if (!selectedConfigExists) {
+      toaster({
+        message: configsEmpty
+          ? 'Add a configuration first'
+          : 'Select a valid configuration to start',
+        preset: Incubator.ToastPresets.FAILURE,
+      });
+      return;
     }
-  }, [settings, configsEmpty, startWithSelectedConfiguration, toaster]);
 
-  React.useEffect(() => settingsDispatcher({
-    type: SettingsActionType.SET_SELECTED_CONFIGURAION,
-    value: selectedConfiguration,
-  }), [selectedConfiguration]);
+    startWithSelectedConfiguration();
+  }, [selectedConfigExists, configsEmpty, startWithSelectedConfiguration, toaster]);
 
-  // Keep local selection in sync when settings change externally
   React.useEffect(() => {
-    if (settings.selectedConfiguration && settings.selectedConfiguration !== selectedConfiguration) {
+    if (selectedConfiguration !== settings.selectedConfiguration) {
+      settingsDispatcher({
+        type: SettingsActionType.SET_SELECTED_CONFIGURAION,
+        value: selectedConfiguration,
+      });
+    }
+  }, [selectedConfiguration, settings.selectedConfiguration, settingsDispatcher]);
+
+  React.useEffect(() => {
+    if (settings.selectedConfiguration !== selectedConfiguration) {
       setSelectedConfiguration(settings.selectedConfiguration);
     }
-  }, [settings.selectedConfiguration]);
+  }, [settings.selectedConfiguration, selectedConfiguration]);
 
   const handleAddConfiguration = React.useCallback((name: string, mode: ConfigurationMode) => {
     const id = `${uuid.v4()}`;
@@ -88,12 +101,7 @@ export const MinerControl: React.FC<ViewProps> = () => {
         mode,
       },
     });
-    // Keep local + global selection in lockstep so Picker never shows N/A
     setSelectedConfiguration(id);
-    settingsDispatcher({
-      type: SettingsActionType.SET_SELECTED_CONFIGURAION,
-      value: id,
-    });
     setShowAddModal(false);
     toaster({
       message: `Added '${trimmed}'`,
@@ -103,7 +111,7 @@ export const MinerControl: React.FC<ViewProps> = () => {
   }, [settingsDispatcher, toaster, navigation]);
 
   const cardBorderColor = React.useMemo<string>(() => {
-    if (!settings.selectedConfiguration) {
+    if (!selectedConfigExists) {
       if (configsEmpty) {
         return Colors.$outlineDanger;
       }
@@ -116,7 +124,7 @@ export const MinerControl: React.FC<ViewProps> = () => {
       return Colors.$outlineWarning;
     }
     return Colors.$outlinePrimary;
-  }, [settings.selectedConfiguration, configsEmpty, workingState]);
+  }, [selectedConfigExists, configsEmpty, workingState]);
 
   return (
     <>
@@ -169,18 +177,13 @@ export const MinerControl: React.FC<ViewProps> = () => {
               topBarProps={{ title: 'Configurations' }}
               value={selectedConfiguration}
               getLabel={(value) => {
-                const id = value != null && typeof value === 'object'
-                  ? (value as { value?: string }).value
-                  : value;
+                const id = pickerValueToId(value);
                 const found = settings.configurations.find((config) => config.id === id);
-                if (found?.name) {
-                  return found.name;
-                }
-                return selectedConfiguration ? 'Loading…' : 'Select configuration';
+                return found?.name || 'Select configuration';
               }}
               showSearch
               searchPlaceholder="Search configurations"
-              onChange={(value: any) => setSelectedConfiguration(value)}
+              onChange={(value: any) => setSelectedConfiguration(pickerValueToId(value))}
               style={{ ...Typography.text70, color: Colors.$textDefault, minHeight: TOUCH_MIN }}
               floatingPlaceholderStyle={{ ...Typography.text80, color: Colors.$textNeutral }}
               migrate
