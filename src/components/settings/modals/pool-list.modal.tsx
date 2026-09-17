@@ -1,26 +1,19 @@
 import _ from 'lodash';
 import React from 'react';
-import { Dimensions, ScrollView } from 'react-native';
+import { ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button, Chip, Incubator, Picker, Typography, View,
 } from 'react-native-ui-lib';
 import { IConfiguratioPropertiesPool } from '../../../core/settings/settings.interface';
 import { sheetBg, tokens } from '../../../core/theme/tokens';
-import {
-  formatPoolStatusChip,
-  PoolProbeResult,
-  probePool,
-} from '../../../core/pools/pool-status';
 import { rememberWallet } from '../../../core/pools/recent-wallets';
 import {
   C3Pool,
-  Hashcity,
   HashVault,
   IPoolState,
   IPredefinedPool,
   IPredefinedPoolInfo,
-  MineXMR,
   MoneroOcean,
   Nano,
   PredefinedPoolName,
@@ -36,7 +29,25 @@ export type PoolListModalProps = Incubator.DialogProps & {
 
 const FOOTER_BASE = 56;
 const HEADER_APPROX = 52;
-const PROBE_INTERVAL_MS = 20000;
+
+const EMPTY_POOL: IConfiguratioPropertiesPool = {
+  hostname: '',
+  port: 0,
+  username: '',
+  password: '',
+  sslEnabled: false,
+};
+
+const normalizePickerValue = (value: any): string | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+  if (typeof value === 'object') {
+    const nested = value.value ?? value.id;
+    return nested == null ? undefined : `${nested}`;
+  }
+  return `${value}`;
+};
 
 const PoolListModal:React.FC<PoolListModalProps> = (
   {
@@ -47,31 +58,28 @@ const PoolListModal:React.FC<PoolListModalProps> = (
   },
 ) => {
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const footerBottomInset = Math.max(insets.bottom, tokens.spacing.sm);
   const footerHeight = FOOTER_BASE + footerBottomInset;
 
   const { dialogHeight, dialogWidth, dialogLeftInset } = React.useMemo(() => {
-    const { height: winH, width: winW } = Dimensions.get('window');
     const height = Math.min(Math.round(winH * 0.85), 640);
     const width = Math.min(Math.round(winW * 0.9), 420);
-    // Incubator.Dialog wraps content in an absolutely-positioned PanView that
-    // ignores flex alignItems — inset from the left to visually center.
     const leftInset = Math.max(0, Math.round((winW - width) / 2));
     return { dialogHeight: height, dialogWidth: width, dialogLeftInset: leftInset };
-  }, []);
+  }, [winH, winW]);
 
   const bodyMaxHeight = Math.max(180, dialogHeight - HEADER_APPROX - footerHeight);
 
   const [selected, setSelected] = React.useState<string>();
-  const [pool, setPool] = React.useState<IConfiguratioPropertiesPool>({
-    hostname: '',
-    port: 0,
-    username: '',
-    password: '',
-    sslEnabled: false,
-  });
+  const [pool, setPool] = React.useState<IConfiguratioPropertiesPool>(EMPTY_POOL);
 
-  const [statusMap, setStatusMap] = React.useState<Record<string, PoolProbeResult>>({});
+  React.useEffect(() => {
+    if (visible) {
+      setSelected(undefined);
+      setPool({ ...EMPTY_POOL });
+    }
+  }, [visible]);
 
   const onChange = React.useCallback(
     (state: IPoolState) => setPool({
@@ -90,73 +98,21 @@ const PoolListModal:React.FC<PoolListModalProps> = (
     [selected],
   );
 
-  React.useEffect(() => {
-    if (!visible) {
-      return undefined;
-    }
-    let cancelled = false;
-
-    const run = async () => {
-      const targets = pools.map((p) => ({
-        key: p.name,
-        hostname: p.info.hostname,
-        port: p.info.port,
-      }));
-      const ordered = selected
-        ? [
-          ...targets.filter((t) => t.key === selected),
-          ...targets.filter((t) => t.key !== selected),
-        ]
-        : targets;
-
-      for (let i = 0; i < ordered.length; i += 1) {
-        if (cancelled) {
-          return;
-        }
-        const t = ordered[i];
-        // eslint-disable-next-line no-await-in-loop
-        const result = await probePool(t.hostname, t.port);
-        if (cancelled) {
-          return;
-        }
-        setStatusMap((prev) => {
-          const prevResult = prev[t.key];
-          if (
-            prevResult
-            && prevResult.online === result.online
-            && prevResult.latencyMs === result.latencyMs
-          ) {
-            return prev;
-          }
-          return { ...prev, [t.key]: result };
-        });
-      }
-    };
-
-    run();
-    const id = setInterval(run, PROBE_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [visible, pools, selected]);
-
-  const selectedStatus = selected ? statusMap[selected] : undefined;
-  const statusLabel = React.useMemo(
-    () => formatPoolStatusChip(selectedStatus),
-    [selectedStatus],
+  const canApply = Boolean(
+    selected
+      && pool.hostname?.trim()
+      && Number(pool.port) > 0
+      && pool.username?.trim(),
   );
 
   const hide = async (isOk: boolean = false) => {
-    if (isOk === true) {
+    if (isOk && canApply) {
       if (pool.username) {
         await rememberWallet(pool.username);
       }
       onAdd(pool);
     }
-    if (onDismiss) {
-      onDismiss();
-    }
+    onDismiss?.();
   };
 
   return (
@@ -166,7 +122,7 @@ const PoolListModal:React.FC<PoolListModalProps> = (
       center
       headerProps={{
         text: {
-          title: 'Pools Presets',
+          title: 'Pool Presets',
           titleStyle: {
             color: tokens.text.primary,
             fontSize: tokens.type.title.fontSize,
@@ -207,12 +163,12 @@ const PoolListModal:React.FC<PoolListModalProps> = (
           <View height={50} paddingT-10>
             <Picker
               floatingPlaceholder={selected == null}
-              placeholder="Select a Pool"
+              placeholder="Select a pool"
               topBarProps={{ title: 'Pools' }}
               value={selected}
               showSearch
-              searchPlaceholder="Search a Configurations"
-              onChange={(value: any) => setSelected(value)}
+              searchPlaceholder="Search pools"
+              onChange={(value: any) => setSelected(normalizePickerValue(value))}
               style={{ ...Typography.text60, color: tokens.text.primary }}
               floatingPlaceholderStyle={{
                 ...Typography.text70,
@@ -253,44 +209,20 @@ const PoolListModal:React.FC<PoolListModalProps> = (
               <Chip
                 size={10}
                 label={poolInfo.method}
-                marginR-8
                 marginB-6
                 labelStyle={{ color: tokens.text.primary }}
                 containerStyle={{ borderColor: tokens.border.subtle }}
-              />
-              <Chip
-                size={10}
-                label={statusLabel}
-                marginB-6
-                labelStyle={{
-                  color: selectedStatus?.online ? tokens.success : tokens.text.secondary,
-                }}
-                containerStyle={{
-                  borderColor: selectedStatus?.online
-                    ? tokens.success
-                    : tokens.border.subtle,
-                }}
               />
             </View>
           )}
 
           <View spread paddingB-10>
-            {selected && selected === PredefinedPoolName.MoneroOcean
-              && <MoneroOcean onChange={onChange} />}
-            {selected && selected === PredefinedPoolName.MineXMR
-              && <MineXMR onChange={onChange} /> }
-            {selected && selected === PredefinedPoolName.SupportXMR
-              && <SupportXMR onChange={onChange} /> }
-            {selected && selected === PredefinedPoolName.nanopool
-              && <Nano onChange={onChange} /> }
-            {selected && selected === PredefinedPoolName.C3Pool
-              && <C3Pool onChange={onChange} /> }
-            {selected && selected === PredefinedPoolName.XMRPoolEU
-              && <XMRPoolEU onChange={onChange} /> }
-            {selected && selected === PredefinedPoolName.HashVault
-              && <HashVault onChange={onChange} /> }
-            {selected && selected === PredefinedPoolName.Hashcity
-              && <Hashcity onChange={onChange} /> }
+            {selected === PredefinedPoolName.MoneroOcean && <MoneroOcean onChange={onChange} />}
+            {selected === PredefinedPoolName.SupportXMR && <SupportXMR onChange={onChange} />}
+            {selected === PredefinedPoolName.nanopool && <Nano onChange={onChange} />}
+            {selected === PredefinedPoolName.C3Pool && <C3Pool onChange={onChange} />}
+            {selected === PredefinedPoolName.XMRPoolEU && <XMRPoolEU onChange={onChange} />}
+            {selected === PredefinedPoolName.HashVault && <HashVault onChange={onChange} />}
           </View>
         </ScrollView>
 
@@ -318,6 +250,7 @@ const PoolListModal:React.FC<PoolListModalProps> = (
             size={Button.sizes.medium}
           />
           <Button
+            disabled={!canApply}
             onPress={() => { hide(true); }}
             label="Apply"
             backgroundColor={tokens.accent}
