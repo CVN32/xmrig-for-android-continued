@@ -5,6 +5,7 @@ import { PowerEvent, PowerEventAction } from './power.interface';
 const { XMRigForAndroid } = NativeModules;
 
 type PowerContextType = {
+    ready: boolean;
     batteryLevel: number;
     isLowBattery: boolean;
     isPowerConnected: boolean;
@@ -14,31 +15,37 @@ type PowerContextType = {
 export const PowerContext:React.Context<PowerContextType> = React.createContext();
 
 export const PowerContextProvider:React.FC = ({ children }) => {
+  const [ready, setReady] = React.useState<boolean>(false);
   const [batteryLevel, setBatteryLevel] = React.useState<number>(0);
   const [isLowBattery, setIsLowBattery] = React.useState<boolean>(false);
   const [isPowerConnected, setIsPowerConnected] = React.useState<boolean>(false);
 
   React.useEffect(() => {
-    const minerEmitter = new NativeEventEmitter(XMRigForAndroid);
+    const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
-    const onPowerEventSub:EmitterSubscription = minerEmitter.addListener('onPower', (event: PowerEvent) => {
+    const onPowerEventSub:EmitterSubscription = MinerEmitter.addListener('onPower', (event: PowerEvent) => {
       switch (event.action) {
         case PowerEventAction.BATTERY_CHANGED:
-          if (typeof event.value === 'number' && Number.isFinite(event.value)) {
+          if (event.value != null && Number.isFinite(event.value)) {
             setBatteryLevel(Math.max(0, Math.min(100, event.value)));
           }
+          setReady(true);
           break;
         case PowerEventAction.BATTERY_LOW:
           setIsLowBattery(true);
+          setReady(true);
           break;
         case PowerEventAction.BATTERY_OKAY:
           setIsLowBattery(false);
+          setReady(true);
           break;
         case PowerEventAction.POWER_CONNECTED:
           setIsPowerConnected(true);
+          setReady(true);
           break;
         case PowerEventAction.POWER_DISCONNECTED:
           setIsPowerConnected(false);
+          setReady(true);
           break;
         default:
       }
@@ -49,14 +56,15 @@ export const PowerContextProvider:React.FC = ({ children }) => {
     };
   }, []);
 
-  const contextValue = React.useMemo(() => ({
+  const value = React.useMemo(() => ({
+    ready,
     batteryLevel,
     isLowBattery,
     isPowerConnected,
-  }), [batteryLevel, isLowBattery, isPowerConnected]);
+  }), [ready, batteryLevel, isLowBattery, isPowerConnected]);
 
   return (
-    <PowerContext.Provider value={contextValue}>
+    <PowerContext.Provider value={value}>
       {children}
     </PowerContext.Provider>
   );
