@@ -14,8 +14,6 @@ if [ ! -x "$CMAKE" ]; then
   CMAKE="$(command -v cmake)"
 fi
 
-# Android does not provide librt/libpthread as separate link targets. Patch once,
-# idempotently, before configuring any ABI.
 if grep -q "pthread rt dl log" "$SOURCE_DIR/CMakeLists.txt"; then
   sed -i.bak 's/pthread rt dl log/dl/g' "$SOURCE_DIR/CMakeLists.txt"
 fi
@@ -31,6 +29,7 @@ for arch in "${archs[@]}"; do
 
   BUILD_DIR="$SOURCE_DIR/build/$ANDROID_ABI"
   TARGET_DIR="$EXTERNAL_LIBS_ROOT/xmrig/$ANDROID_ABI"
+  rm -rf "$BUILD_DIR"
   mkdir -p "$BUILD_DIR" "$TARGET_DIR"
 
   echo "Building XMRig for $ANDROID_ABI"
@@ -49,7 +48,7 @@ for arch in "${archs[@]}"; do
     -DWITH_TLS=ON \
     -DHWLOC_LIBRARY="$EXTERNAL_LIBS_ROOT/hwloc/$ANDROID_ABI/lib/libhwloc.a" \
     -DHWLOC_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/hwloc/$ANDROID_ABI/include" \
-    -DUV_LIBRARY="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI/lib/libuv_a.a" \
+    -DUV_LIBRARY="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI/lib/libuv.a" \
     -DUV_INCLUDE_DIR="$EXTERNAL_LIBS_ROOT/libuv/$ANDROID_ABI/include" \
     -DOPENSSL_SSL_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libssl.a" \
     -DOPENSSL_CRYPTO_LIBRARY="$EXTERNAL_LIBS_ROOT/openssl/$ANDROID_ABI/lib/libcrypto.a" \
