@@ -8,7 +8,7 @@ const darkChrome = {
   textColor: tokens.text.primary,
   mutedText: tokens.text.secondary,
   border: tokens.border.subtle,
-  radius: 12,
+  radius: tokens.radius.md,
   statusBarStyle: 'light-content' as const,
 };
 
