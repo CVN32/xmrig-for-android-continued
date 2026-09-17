@@ -17,7 +17,7 @@ export const XMRPoolEU:React.FC<IPool> = ({ onChange }) => {
       username: `${wallet}${difficulty ? '.' : ''}${difficulty}${worker ? '+' : ''}${worker}`,
       password: 'x',
     });
-  }, [wallet, worker, difficulty]);
+  }, [wallet, worker, difficulty, onChange]);
 
   return (
     <>
