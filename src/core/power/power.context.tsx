@@ -19,14 +19,13 @@ export const PowerContextProvider:React.FC = ({ children }) => {
   const [isPowerConnected, setIsPowerConnected] = React.useState<boolean>(false);
 
   React.useEffect(() => {
-    const MinerEmitter = new NativeEventEmitter(XMRigForAndroid);
+    const minerEmitter = new NativeEventEmitter(XMRigForAndroid);
 
-    const onPowerEventSub:EmitterSubscription = MinerEmitter.addListener('onPower', (event: PowerEvent) => {
-      console.log(event);
+    const onPowerEventSub:EmitterSubscription = minerEmitter.addListener('onPower', (event: PowerEvent) => {
       switch (event.action) {
         case PowerEventAction.BATTERY_CHANGED:
-          if (event.value) {
-            setBatteryLevel(event.value);
+          if (typeof event.value === 'number' && Number.isFinite(event.value)) {
+            setBatteryLevel(Math.max(0, Math.min(100, event.value)));
           }
           break;
         case PowerEventAction.BATTERY_LOW:
@@ -50,15 +49,14 @@ export const PowerContextProvider:React.FC = ({ children }) => {
     };
   }, []);
 
+  const contextValue = React.useMemo(() => ({
+    batteryLevel,
+    isLowBattery,
+    isPowerConnected,
+  }), [batteryLevel, isLowBattery, isPowerConnected]);
+
   return (
-    <PowerContext.Provider
-      // eslint-disable-next-line react/jsx-no-constructed-context-values
-      value={{
-        batteryLevel,
-        isLowBattery,
-        isPowerConnected,
-      }}
-    >
+    <PowerContext.Provider value={contextValue}>
       {children}
     </PowerContext.Provider>
   );
