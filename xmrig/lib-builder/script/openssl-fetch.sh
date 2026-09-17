@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 source script/env.sh
 
-cd $EXTERNAL_LIBS_BUILD_ROOT
+cd "$EXTERNAL_LIBS_BUILD_ROOT"
+OPENSSL_VERSION="3.5.8"
 
-OPENSSL_VERSION="1.1.1m"
-
-if [ ! -d "openssl" ]; then
-  wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz -O openssl.tar.gz
-  tar -xvf openssl.tar.gz
-  mv openssl-${OPENSSL_VERSION} openssl
+if [ ! -f openssl/.xmrig-android-version ] || [ "$(cat openssl/.xmrig-android-version 2>/dev/null || true)" != "$OPENSSL_VERSION" ]; then
+  rm -rf openssl
+  git clone --depth 1 --branch "openssl-${OPENSSL_VERSION}" \
+    https://github.com/openssl/openssl.git openssl
+  printf '%s\n' "$OPENSSL_VERSION" > openssl/.xmrig-android-version
 fi
