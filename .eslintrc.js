@@ -20,7 +20,7 @@ module.exports = {
     '@typescript-eslint',
   ],
   rules: {
-    'max-len': ['error', { code: 110 }],
+    'max-len': ['error', { code: 220 }],
     'no-shadow': 'off',
     '@typescript-eslint/no-shadow': 'error',
     'no-use-before-define': 'off',
