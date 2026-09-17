@@ -19,15 +19,17 @@ const { XMRigForAndroid } = NativeModules;
 
 type SessionDataContextType = {
   working: StartMode,
-  workingState: string,
+  workingState: WorkingState,
   minerData: IMinerSummary | null,
   hashrateTotals: IHashrateHistory,
   minerActions: {
-    pause: () => {},
-    resume: () => {},
+    pause: () => void,
+    resume: () => void,
   },
   CPUTemp: number,
 }
+
+type AutoPauseReason = 'lowBattery' | 'charger' | 'thermal';
 
 // @ts-ignore
 export const SessionDataContext:React.Context<SessionDataContextType> = React.createContext();
@@ -35,8 +37,15 @@ export const SessionDataContext:React.Context<SessionDataContextType> = React.cr
 export const SessionDataContextProvider:React.FC = ({ children }) => {
   const toaster = useToaster();
   const { settings, settingsDispatcher } = React.useContext(SettingsContext);
+  const settingsRef = React.useRef(settings);
+  settingsRef.current = settings;
+
   const { log } = React.useContext(LoggerContext);
-  const { isLowBattery, isPowerConnected } = React.useContext(PowerContext);
+  const {
+    ready: powerReady,
+    isLowBattery,
+    isPowerConnected,
+  } = React.useContext(PowerContext);
 
   const hashrateHistory = useHashrateHistory([0, 0]);
   const hashrateHistory10s = useHashrateHistory([0, 0]);
@@ -48,40 +57,36 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
   const { minerData } = useMinerSummary();
   const { isWorking } = useMinerStatus();
   const { cpuTemperature } = useThermal();
+  const autoPauseReasons = React.useRef<Set<AutoPauseReason>>(new Set());
 
-  // backward compability
   const working = React.useMemo<StartMode>(
-    () => {
-      if (isWorking === true) {
-        return StartMode.START;
-      }
-      return StartMode.STOP;
-    },
+    () => (isWorking ? StartMode.START : StartMode.STOP),
     [isWorking],
   );
 
-  const pauseMiner = () => XMRigForAndroid?.pauseMiner();
-  const resumeMiner = () => XMRigForAndroid?.resumeMiner();
+  const pauseMiner = React.useCallback(() => XMRigForAndroid?.pauseMiner(), []);
+  const resumeMiner = React.useCallback(() => XMRigForAndroid?.resumeMiner(), []);
 
   React.useEffect(() => {
-    hashrateHistory.add(parseFloat(`${minerData?.hashrate.total[0]}`) || 0);
-    hashrateHistory10s.add(parseFloat(`${minerData?.hashrate.total[0]}`) || 0);
-    hashrateHistory60s.add(parseFloat(`${minerData?.hashrate.total[1]}`) || 0);
-    hashrateHistory15m.add(parseFloat(`${minerData?.hashrate.total[2]}`) || 0);
-    hashrateHistoryMax.add(parseFloat(`${minerData?.hashrate.highest}`) || 0);
+    hashrateHistory.add(parseFloat(`${minerData?.hashrate?.total?.[0]}`) || 0);
+    hashrateHistory10s.add(parseFloat(`${minerData?.hashrate?.total?.[0]}`) || 0);
+    hashrateHistory60s.add(parseFloat(`${minerData?.hashrate?.total?.[1]}`) || 0);
+    hashrateHistory15m.add(parseFloat(`${minerData?.hashrate?.total?.[2]}`) || 0);
+    hashrateHistoryMax.add(parseFloat(`${minerData?.hashrate?.highest}`) || 0);
   }, [minerData]);
 
   React.useEffect(() => {
     if (!isWorking) {
       setWorkingState(WorkingState.NOT_WORKING);
+      autoPauseReasons.current.clear();
       hashrateHistory.reset();
       hashrateHistory10s.reset();
       hashrateHistory60s.reset();
       hashrateHistory15m.reset();
       hashrateHistoryMax.reset();
-    } else if (isWorking && minerData?.paused) {
+    } else if (minerData?.paused) {
       setWorkingState(WorkingState.PAUSED);
-    } else if (isWorking && !minerData?.paused) {
+    } else {
       setWorkingState(WorkingState.MINING);
     }
   }, [isWorking, minerData?.paused]);
@@ -95,14 +100,17 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
     });
 
     const onConfigUpdateSub:EmitterSubscription = MinerEmitter.addListener('onConfigUpdate', (data) => {
-      console.log('onConfigUpdate', data.config);
-      const cConfig:Configuration | undefined = settings.configurations.find(
-        (config) => config.id === settings.selectedConfiguration,
+      const currentSettings = settingsRef.current;
+      const cConfig:Configuration | undefined = currentSettings.configurations.find(
+        (config) => config.id === currentSettings.selectedConfiguration,
       );
-      if (cConfig && cConfig.mode === ConfigurationMode.SIMPLE) {
+      if (!cConfig || typeof data?.config !== 'string') {
+        return;
+      }
+
+      if (cConfig.mode === ConfigurationMode.SIMPLE) {
         try {
           const parsedConfig = JSON.parse(data.config);
-          console.log('parsedConfig', parsedConfig);
           settingsDispatcher({
             type: SettingsActionType.UPDATE_CONFIGURATION,
             value: {
@@ -114,10 +122,9 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
             },
           });
         } catch (e) {
-          console.log('ERROR PARSE ALGO PERF', e);
+          console.warn('Unable to parse miner config update', e);
         }
-      }
-      if (cConfig && cConfig.mode === ConfigurationMode.ADVANCE) {
+      } else if (cConfig.mode === ConfigurationMode.ADVANCE) {
         settingsDispatcher({
           type: SettingsActionType.UPDATE_CONFIGURATION,
           value: {
@@ -131,91 +138,150 @@ export const SessionDataContextProvider:React.FC = ({ children }) => {
     return () => {
       onLogSub.remove();
       onConfigUpdateSub.remove();
-      XMRigForAndroid.stop();
     };
-  }, []);
+  }, [log, settingsDispatcher]);
 
+  const previousLowBattery = React.useRef<boolean | null>(null);
   React.useEffect(() => {
-    if (isLowBattery) {
+    if (!powerReady) {
+      return;
+    }
+    if (previousLowBattery.current != null && previousLowBattery.current !== isLowBattery) {
       toaster({
-        message: 'Battery is low',
+        message: isLowBattery ? 'Battery is low' : 'Battery level is normal',
         position: 'top',
-        preset: Incubator.ToastPresets.FAILURE,
+        preset: isLowBattery ? Incubator.ToastPresets.FAILURE : Incubator.ToastPresets.SUCCESS,
       });
     }
-    if (settings.power.pauseOnLowBattery && isLowBattery === true) {
-      pauseMiner();
-    } else if (settings.power.resumeOnBatteryOk && isLowBattery === false) {
-      resumeMiner();
-    }
-  }, [isLowBattery]);
+    previousLowBattery.current = isLowBattery;
+  }, [powerReady, isLowBattery, toaster]);
 
+  const previousPowerConnected = React.useRef<boolean | null>(null);
   React.useEffect(() => {
-    if (!isPowerConnected) {
+    if (!powerReady) {
+      return;
+    }
+    if (previousPowerConnected.current != null && previousPowerConnected.current !== isPowerConnected) {
       toaster({
-        message: 'Charger is disconnected',
+        message: isPowerConnected ? 'Charger is connected' : 'Charger is disconnected',
         position: 'top',
-        preset: Incubator.ToastPresets.FAILURE,
-      });
-    } else {
-      toaster({
-        message: 'Charger is connected',
-        position: 'top',
-        preset: Incubator.ToastPresets.SUCCESS,
+        preset: isPowerConnected ? Incubator.ToastPresets.SUCCESS : Incubator.ToastPresets.FAILURE,
       });
     }
-    if (
-      settings.power.resumeOnChargerConnected
-      && isPowerConnected === true
-      && workingState === WorkingState.PAUSED) {
-      resumeMiner();
-    } else if (
-      settings.power.pauseOnChargerDisconnected
-      && isPowerConnected === false
-      && workingState === WorkingState.MINING
-    ) {
-      pauseMiner();
-    }
-  }, [isPowerConnected]);
+    previousPowerConnected.current = isPowerConnected;
+  }, [powerReady, isPowerConnected, toaster]);
 
   React.useEffect(() => {
-    if (!Number.isNaN(cpuTemperature)) {
-      if (
-        settings.thermal.pauseOnCPUTemperatureOverHeat
-        && cpuTemperature > settings.thermal.pauseOnCPUTemperatureOverHeatValue
-        && workingState === WorkingState.MINING
-      ) {
+    if (!isWorking) {
+      autoPauseReasons.current.clear();
+      return;
+    }
+
+    const lowBatteryBlocked = powerReady
+      && settings.power.pauseOnLowBattery
+      && isLowBattery;
+    const chargerBlocked = powerReady
+      && settings.power.pauseOnChargerDisconnected
+      && !isPowerConnected;
+    const thermalBlocked = Number.isFinite(cpuTemperature)
+      && settings.thermal.pauseOnCPUTemperatureOverHeat
+      && cpuTemperature >= settings.thermal.pauseOnCPUTemperatureOverHeatValue;
+
+    const activeReasons: AutoPauseReason[] = [];
+    if (lowBatteryBlocked) activeReasons.push('lowBattery');
+    if (chargerBlocked) activeReasons.push('charger');
+    if (thermalBlocked) activeReasons.push('thermal');
+
+    if (activeReasons.length > 0) {
+      activeReasons.forEach((reason) => autoPauseReasons.current.add(reason));
+      if (workingState === WorkingState.MINING) {
         pauseMiner();
-      } else if (
-        settings.thermal.resumeCPUTemperatureNormal
-        && cpuTemperature < settings.thermal.resumeCPUTemperatureNormalValue
-        && workingState === WorkingState.PAUSED
-      ) {
-        resumeMiner();
       }
+      return;
     }
-  }, [cpuTemperature]);
+
+    if (workingState === WorkingState.MINING) {
+      // The miner is running again (for example after a manual resume), so old
+      // auto-pause causes must not trigger a later surprise resume.
+      autoPauseReasons.current.clear();
+      return;
+    }
+
+    if (workingState !== WorkingState.PAUSED || autoPauseReasons.current.size === 0) {
+      return;
+    }
+
+    const reasons = Array.from(autoPauseReasons.current);
+    const allowedToResume = reasons.every((reason) => {
+      switch (reason) {
+        case 'lowBattery':
+          return !isLowBattery && settings.power.resumeOnBatteryOk;
+        case 'charger':
+          return isPowerConnected && settings.power.resumeOnChargerConnected;
+        case 'thermal':
+          return Number.isFinite(cpuTemperature)
+            && cpuTemperature <= settings.thermal.resumeCPUTemperatureNormalValue
+            && settings.thermal.resumeCPUTemperatureNormal;
+        default:
+          return false;
+      }
+    });
+
+    if (allowedToResume) {
+      autoPauseReasons.current.clear();
+      resumeMiner();
+    }
+  }, [
+    isWorking,
+    workingState,
+    powerReady,
+    isLowBattery,
+    isPowerConnected,
+    cpuTemperature,
+    settings.power.pauseOnLowBattery,
+    settings.power.pauseOnChargerDisconnected,
+    settings.power.resumeOnBatteryOk,
+    settings.power.resumeOnChargerConnected,
+    settings.thermal.pauseOnCPUTemperatureOverHeat,
+    settings.thermal.pauseOnCPUTemperatureOverHeatValue,
+    settings.thermal.resumeCPUTemperatureNormal,
+    settings.thermal.resumeCPUTemperatureNormalValue,
+    pauseMiner,
+    resumeMiner,
+  ]);
+
+  const value = React.useMemo<SessionDataContextType>(() => ({
+    working,
+    workingState,
+    minerData,
+    hashrateTotals: {
+      historyCurrent: hashrateHistory.history,
+      history10s: hashrateHistory10s.history,
+      history60s: hashrateHistory60s.history,
+      history15m: hashrateHistory15m.history,
+      historyMax: hashrateHistoryMax.history,
+    },
+    minerActions: {
+      pause: pauseMiner,
+      resume: resumeMiner,
+    },
+    CPUTemp: cpuTemperature,
+  }), [
+    working,
+    workingState,
+    minerData,
+    hashrateHistory.history,
+    hashrateHistory10s.history,
+    hashrateHistory60s.history,
+    hashrateHistory15m.history,
+    hashrateHistoryMax.history,
+    pauseMiner,
+    resumeMiner,
+    cpuTemperature,
+  ]);
 
   return (
-    // eslint-disable-next-line react/jsx-no-constructed-context-values
-    <SessionDataContext.Provider value={{
-      working,
-      workingState,
-      minerData,
-      hashrateTotals: {
-        historyCurrent: hashrateHistory.history,
-        history10s: hashrateHistory10s.history,
-        history60s: hashrateHistory60s.history,
-        history15m: hashrateHistory15m.history,
-        historyMax: hashrateHistoryMax.history,
-      },
-      minerActions: {
-        pause: pauseMiner,
-        resume: resumeMiner,
-      },
-      CPUTemp: cpuTemperature,
-    }}
-    >
+    <SessionDataContext.Provider value={value}>
       {children}
     </SessionDataContext.Provider>
   );
