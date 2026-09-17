@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 source script/env.sh
 
-build_root=$EXTERNAL_LIBS_BUILD_ROOT
-PATH=$ANDROID_NDK_ROOT/build/tools/:$PATH
+LLVM_BIN="$TOOLCHAINS_PATH/bin"
 
-args="--api 29 --stl=libc++"
-archs=(arm arm64 x86 x86_64)
+# Modern Android NDKs ship one LLVM toolchain for every target ABI. The old
+# make_standalone_toolchain.py flow was removed years ago and must not be used
+# with the pinned side-by-side NDK.
+test -x "$LLVM_BIN/clang" || {
+  echo "Android NDK clang was not found at $LLVM_BIN/clang" >&2
+  exit 1
+}
+test -x "$LLVM_BIN/llvm-ar" || {
+  echo "Android NDK llvm-ar was not found at $LLVM_BIN/llvm-ar" >&2
+  exit 1
+}
 
-for arch in ${archs[@]}; do
-    if [ ! -d "$NDK_TOOL_DIR/$arch" ]; then
-        echo "installing $ANDROID_NDK_ROOT $arch $args"
-        make_standalone_toolchain.py $args --arch $arch --install-dir $NDK_TOOL_DIR/$arch
-        sed -i.orig "s|using ::fgetpos;|//using ::fgetpos;|" $NDK_TOOL_DIR/$arch/include/c++/4.9.x/cstdio
-        sed -i.orig "s|using ::fsetpos;|//using ::fsetpos;|" $NDK_TOOL_DIR/$arch/include/c++/4.9.x/cstdio
-    fi
-done
+echo "Using Android NDK LLVM toolchain: $TOOLCHAINS_PATH"
