@@ -20,6 +20,7 @@ module.exports = {
     '@typescript-eslint',
   ],
   rules: {
+    'max-len': ['error', { code: 110 }],
     'no-shadow': 'off',
     '@typescript-eslint/no-shadow': 'error',
     'no-use-before-define': 'off',
@@ -29,6 +30,7 @@ module.exports = {
     'react/jsx-filename-extension': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
     'react/no-array-index-key': 'off',
+    'react/no-unused-prop-types': 'warn',
     'no-unused-vars': 0,
     'react/no-unescaped-entities': 'off',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
