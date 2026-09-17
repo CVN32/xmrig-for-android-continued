@@ -3,7 +3,7 @@ import { Incubator } from 'react-native-ui-lib';
 import { IPool, poolFieldProps, sharedStyles, WalletAddressField } from '.';
 
 const hostname = 'xmr-eu1.nanopool.org';
-const port = 14444;
+const port = 10300;
 
 export const Nano:React.FC<IPool> = ({ onChange }) => {
   const [wallet, setWallet] = React.useState<string>('');
@@ -20,7 +20,7 @@ export const Nano:React.FC<IPool> = ({ onChange }) => {
       username: `${wallet}${tmpWorker}${tmpEMail}`,
       password: 'x',
     });
-  }, [wallet, worker, email]);
+  }, [wallet, worker, email, onChange]);
 
   return (
     <>
@@ -40,7 +40,7 @@ export const Nano:React.FC<IPool> = ({ onChange }) => {
         {...poolFieldProps}
       />
       <Incubator.TextField
-        label="EMail"
+        label="Email"
         value={email}
         onChangeText={setEmail}
         floatOnFocus
