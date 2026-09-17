@@ -98,7 +98,6 @@ const MinerScreen = () => {
           paddingBottom: tokens.spacing.xl,
         }}
       >
-        {/* 1. Status strip (1 line) */}
         <View
           row
           centerV
@@ -128,16 +127,21 @@ const MinerScreen = () => {
             {statusLabel}
             {statusMeta ? ` · ${statusMeta}` : ''}
           </Text>
-          <Battery
-            percent={powerContext.batteryLevel}
-            size={28}
-            color={batteryColor}
-            charging={powerContext.isPowerConnected}
-            outlined={false}
-          />
+          {powerContext.ready ? (
+            <Battery
+              percent={powerContext.batteryLevel}
+              size={28}
+              color={batteryColor}
+              charging={powerContext.isPowerConnected}
+              outlined={false}
+            />
+          ) : (
+            <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
+              Battery —
+            </Text>
+          )}
         </View>
 
-        {/* 2. Primary metrics: hashrate + shares + temp */}
         <View
           style={{
             backgroundColor: chrome.cardBG,
@@ -213,12 +217,10 @@ const MinerScreen = () => {
           </View>
         </View>
 
-        {/* 3. Quick actions Start/Stop — above details so expand cannot cover it */}
         <View style={{ marginBottom: tokens.spacing.md }}>
           <MinerControl />
         </View>
 
-        {/* 4. Collapsible worker/config summary (header + body are siblings; body pushes layout) */}
         <View
           style={{
             backgroundColor: chrome.cardBG,
