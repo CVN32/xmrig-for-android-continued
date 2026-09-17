@@ -96,21 +96,21 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.artifact.outputs.ver }}
-          name: v${{ steps.artifact.outputs.ver }} — reliability and UI repair
+          name: v${{ steps.artifact.outputs.ver }} — UI layout and stability repair
           prerelease: false
           fail_on_unmatched_files: true
           files: |
             ${{ steps.artifact.outputs.apk }}
             ${{ steps.artifact.outputs.apk }}.sha256
           body: |
-            ## Reliability and UI repair
+            ## UI layout and stability repair
 
-            - Native XMRig binaries rebuilt from current source revisions
-            - Miner lifecycle, service binding and WakeLock fixes
-            - Configuration selection/storage synchronization fixes
-            - Pool preset and configuration editor fixes
-            - Power/thermal state handling fixes
-            - arm64-only APK so unsupported ABIs cannot install a build without miner binaries
+            - Pool Presets rebuilt as a centered modal with persistent Cancel / Apply actions
+            - Preset switching no longer reuses stale pool state
+            - Worker & config details render independently from live miner telemetry
+            - Expanded miner statistics use responsive widths and safer summary access
+            - Configuration creation avoids redundant selection dispatches
+            - arm64-only APK with current native miners
 
             ### Artifact
             - `xmrig-continued-${{ steps.artifact.outputs.ver }}-arm64.apk`
