@@ -11,31 +11,36 @@ concurrency:
   group: build-all-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  ANDROID_PLATFORM: android-29
+  NDK_VERSION: 21.4.7075529
+  ARCHS: arm64
+
 jobs:
   verify:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
-      - name: Set up Android SDK / NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android build packages
+      - name: Install Android SDK / NDK packages
+        shell: bash
         run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager \
             "platform-tools" \
             "platforms;android-31" \
             "build-tools;31.0.0" \
-            "ndk;21.4.7075529" \
+            "ndk;${NDK_VERSION}" \
             "cmake;3.18.1"
 
       - uses: actions/setup-node@v4
@@ -44,12 +49,12 @@ jobs:
           cache: yarn
 
       - name: Install JS dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile || yarn install
+
+      - name: Lint UI and application code
+        run: yarn lint
 
       - name: Build current native miners
-        env:
-          ARCHS: arm64
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
         run: |
           set -euo pipefail
           cd xmrig/lib-builder
@@ -68,6 +73,13 @@ jobs:
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           ./gradlew assembleRelease --no-daemon --stacktrace
 
+      - name: Upload verification APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
       - name: Upload verification outputs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -81,30 +93,32 @@ jobs:
 
   release:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
-      - name: Set up Android SDK / NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android build packages
+      - name: Install Android SDK / NDK packages
+        shell: bash
         run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager \
             "platform-tools" \
             "platforms;android-31" \
             "build-tools;31.0.0" \
-            "ndk;21.4.7075529" \
+            "ndk;${NDK_VERSION}" \
             "cmake;3.18.1"
 
       - uses: actions/setup-node@v4
@@ -113,12 +127,12 @@ jobs:
           cache: yarn
 
       - name: Install JS dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile || yarn install
+
+      - name: Lint UI and application code
+        run: yarn lint
 
       - name: Build current native miners
-        env:
-          ARCHS: arm64
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
         run: |
           set -euo pipefail
           cd xmrig/lib-builder
@@ -135,17 +149,6 @@ jobs:
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Upload gradle logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-logs
-          path: |
-            android/app/build/outputs/**
-            android/**/*.log
-            xmrig/lib-builder/build/**/*.log
-          if-no-files-found: ignore
-
       - name: Package artifact
         id: artifact
         run: |
@@ -159,20 +162,29 @@ jobs:
           cp "$SRC" "$OUT"
           echo "ver=$VER" >> "$GITHUB_OUTPUT"
           echo "apk=$OUT" >> "$GITHUB_OUTPUT"
-          sha256sum "$OUT"
+          sha256sum "$OUT" | tee "${OUT}.sha256"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.artifact.outputs.ver }}
-          name: v${{ steps.artifact.outputs.ver }}
+          name: v${{ steps.artifact.outputs.ver }} — reliability and UI repair
           prerelease: false
-          files: ${{ steps.artifact.outputs.apk }}
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.artifact.outputs.apk }}
+            ${{ steps.artifact.outputs.apk }}.sha256
           body: |
-            ## Artifact
+            ## Reliability and UI repair
 
+            - Native XMRig binaries rebuilt from current source revisions
+            - Miner lifecycle, service binding and WakeLock fixes
+            - Configuration selection/storage synchronization fixes
+            - Pool preset and configuration editor fixes
+            - Power/thermal state handling fixes
+
+            ### Artifact
             - `xmrig-continued-${{ steps.artifact.outputs.ver }}-arm64.apk`
-            - arm64-v8a
-            - Native XMRig binaries rebuilt from the source revisions in this release
+            - `arm64-v8a`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
