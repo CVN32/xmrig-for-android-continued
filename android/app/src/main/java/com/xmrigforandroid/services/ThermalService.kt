@@ -5,34 +5,57 @@ import android.content.Intent
 import android.os.CountDownTimer
 import android.os.IBinder
 import android.util.Log
-import androidx.work.*
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.xmrigforandroid.workers.ThermalWorker
 
 class ThermalService : Service() {
 
-    val thermalWorkRequest: OneTimeWorkRequest.Builder = OneTimeWorkRequestBuilder<ThermalWorker>()
+    private var updateTimer: CountDownTimer? = null
 
-    val updateTimer = object: CountDownTimer(15000, 15000) {
-        override fun onTick(millisUntilFinished: Long) {
-        }
-
-        override fun onFinish() {
-            Log.d(ThermalService.LOG_TAG, "updateTimer")
-            WorkManager.getInstance(applicationContext).enqueue(thermalWorkRequest.build())
-            this.start()
-        }
+    override fun onCreate() {
+        super.onCreate()
+        IS_SERVICE_RUNNING = true
+        enqueueThermalSample()
+        scheduleNextSample()
     }
 
-    init {
-        updateTimer.start()
+    private fun enqueueThermalSample() {
+        WorkManager.getInstance(applicationContext)
+            .enqueue(OneTimeWorkRequestBuilder<ThermalWorker>().build())
     }
 
-    override fun onBind(intent: Intent): IBinder? {
-        return null
+    private fun scheduleNextSample() {
+        updateTimer?.cancel()
+        updateTimer = object : CountDownTimer(UPDATE_INTERVAL_MS, UPDATE_INTERVAL_MS) {
+            override fun onTick(millisUntilFinished: Long) = Unit
+
+            override fun onFinish() {
+                if (!IS_SERVICE_RUNNING) {
+                    return
+                }
+                Log.d(LOG_TAG, "sampling CPU temperature")
+                enqueueThermalSample()
+                scheduleNextSample()
+            }
+        }.start()
     }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+
+    override fun onDestroy() {
+        IS_SERVICE_RUNNING = false
+        updateTimer?.cancel()
+        updateTimer = null
+        super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent): IBinder? = null
 
     companion object {
-        private val LOG_TAG = "ThermalService"
+        private const val LOG_TAG = "ThermalService"
+        private const val UPDATE_INTERVAL_MS = 15_000L
+        @Volatile
         var IS_SERVICE_RUNNING = false
     }
 }
