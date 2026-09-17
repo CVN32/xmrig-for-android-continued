@@ -21,6 +21,8 @@ To understand how mining works, see [XMRig's Documentation](https://xmrig.com/do
 
 The 0.2.8 reliability pass re-audits previously marked fixes, including miner startup/stop, service binding, WakeLock lifecycle, settings persistence, Pool Presets, power/thermal automation and native rebuilds.
 
+Pool Presets are limited to maintained endpoints in this release. Reachability is checked with a native TCP connection to the actual Stratum host/port; the app no longer treats generic HTTP failures as proof that a mining endpoint is online.
+
 ## Build
 
 See [BUILD.md](./BUILD.md).
