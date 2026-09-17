@@ -15,42 +15,66 @@ export interface IMinerSendCompiguration {
   config: string,
 }
 
+export type MinerStartResult = {
+  ok: boolean;
+  error?: string;
+}
+
 export const useMiner = () => {
   const { settings } = React.useContext(SettingsContext);
 
-  const startHandler = React.useCallback((config: IMinerSendCompiguration) => {
-    XMRigForAndroid.start(JSON.stringify(config));
+  const startHandler = React.useCallback((config: IMinerSendCompiguration): MinerStartResult => {
+    if (!XMRigForAndroid?.start) {
+      return { ok: false, error: 'Native miner module is unavailable' };
+    }
+    try {
+      XMRigForAndroid.start(JSON.stringify(config));
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Unable to start miner',
+      };
+    }
   }, []);
 
-  const startWithSelectedConfigurationHandler = React.useCallback(() => {
-    if (settings.selectedConfiguration) {
-      const cConfig:Configuration | undefined = settings.configurations.find(
-        (config) => config.id === settings.selectedConfiguration,
-      );
-
-      if (cConfig) {
-        const sConfig = ConfigBuilder.build(cConfig);
-        if (sConfig) {
-          const sConfigPartial: Partial<IMinerSendCompiguration> = _.pick(
-            cConfig,
-            ['id', 'name', 'mode', 'xmrig_fork'],
-          );
-          sConfig.setProps({
-            'donate-level': settings.donation,
-            'print-time': settings.printTime,
-          });
-
-          startHandler({
-            ...sConfigPartial,
-            config: sConfig.getConfigBase64(),
-          } as IMinerSendCompiguration);
-        }
-      }
+  const startWithSelectedConfigurationHandler = React.useCallback((): MinerStartResult => {
+    if (!settings.selectedConfiguration) {
+      return { ok: false, error: 'Select a configuration to start' };
     }
-  }, [settings]);
+
+    const cConfig:Configuration | undefined = settings.configurations.find(
+      (config) => config.id === settings.selectedConfiguration,
+    );
+    if (!cConfig) {
+      return { ok: false, error: 'Selected configuration no longer exists' };
+    }
+
+    try {
+      const sConfig = ConfigBuilder.build(cConfig);
+      const sConfigPartial: Partial<IMinerSendCompiguration> = _.pick(
+        cConfig,
+        ['id', 'name', 'mode', 'xmrig_fork'],
+      );
+      sConfig.setProps({
+        'donate-level': settings.donation,
+        'print-time': settings.printTime,
+      });
+
+      return startHandler({
+        ...sConfigPartial,
+        config: sConfig.getConfigBase64(),
+      } as IMinerSendCompiguration);
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Invalid miner configuration',
+      };
+    }
+  }, [settings, startHandler]);
 
   const stopHandler = React.useCallback(() => {
-    XMRigForAndroid.stop();
+    XMRigForAndroid?.stop?.();
   }, []);
 
   return {
