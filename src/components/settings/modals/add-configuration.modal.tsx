@@ -3,7 +3,6 @@ import { StyleSheet } from 'react-native';
 import {
   Text,
   View,
-  Colors,
   Incubator,
   RadioGroup,
   RadioButton,
