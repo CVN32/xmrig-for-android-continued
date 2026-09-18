@@ -44,22 +44,45 @@ type DetailRowProps = {
   label: string;
   value: string;
   mono?: boolean;
+  last?: boolean;
 };
 
-const DetailRow: React.FC<DetailRowProps> = ({ label, value, mono }) => {
+const DetailRow: React.FC<DetailRowProps> = ({
+  label,
+  value,
+  mono,
+  last,
+}) => {
   const chrome = CHROME.dark;
   return (
-    <View style={styles.detailRow}>
-      <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
+    <View
+      row
+      style={[
+        styles.detailRow,
+        !last && {
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: chrome.border,
+        },
+      ]}
+    >
+      <Text
+        style={{
+          ...tokens.type.caption,
+          color: chrome.mutedText,
+          width: 112,
+          paddingRight: tokens.spacing.md,
+        }}
+      >
         {label}
       </Text>
       <Text
+        flex
         selectable
-        numberOfLines={2}
+        numberOfLines={3}
         style={{
           ...(mono ? tokens.type.mono : tokens.type.body),
           color: chrome.textColor,
-          marginTop: tokens.spacing.xs,
+          textAlign: 'right',
         }}
       >
         {value}
@@ -70,10 +93,13 @@ const DetailRow: React.FC<DetailRowProps> = ({ label, value, mono }) => {
 
 DetailRow.defaultProps = {
   mono: false,
+  last: false,
 };
 
 const MinerScreen = () => {
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
+  const scrollRef = React.useRef<ScrollView>(null);
+  const shouldRevealDetails = React.useRef(false);
   const {
     workingState, minerData, hashrateTotals, CPUTemp,
   } = React.useContext(SessionDataContext);
@@ -81,18 +107,6 @@ const MinerScreen = () => {
   const { settings } = React.useContext(SettingsContext);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
 
-  const statusLabel = React.useMemo(() => {
-    if (workingState === WorkingState.MINING) {
-      return 'Running';
-    }
-    if (workingState === WorkingState.PAUSED) {
-      return 'Paused';
-    }
-    return 'Stopped';
-  }, [workingState]);
-
-  const uptimeStr = formatUptime(minerData?.connection?.uptime ?? minerData?.uptime);
-  const livePool = minerData?.connection?.pool;
   const selectedConfig = settings.configurations.find(
     (configuration) => configuration.id === settings.selectedConfiguration,
   );
@@ -103,14 +117,32 @@ const MinerScreen = () => {
   const configuredPoolEndpoint = configuredPool?.hostname
     ? `${configuredPool.hostname}${configuredPool.port ? `:${configuredPool.port}` : ''}`
     : null;
-  let configuredSsl = '—';
-  if (configuredPool) {
-    configuredSsl = configuredPool.sslEnabled ? 'Enabled' : 'Disabled';
-  }
+  const configuredSsl = configuredPool
+    ? (configuredPool.sslEnabled ? 'Enabled' : 'Disabled')
+    : '—';
 
-  const liveHashrate = hashrateToString(_.last(hashrateTotals.historyCurrent) || 0, true);
-  const accepted = minerData?.connection?.accepted ?? 0;
-  const rejected = minerData?.connection?.rejected ?? 0;
+  const processWorking = workingState !== WorkingState.NOT_WORKING;
+  const livePool = processWorking ? minerData?.connection?.pool : undefined;
+  const uptimeStr = processWorking
+    ? formatUptime(minerData?.connection?.uptime ?? minerData?.uptime)
+    : null;
+
+  const statusLabel = React.useMemo(() => {
+    if (workingState === WorkingState.PAUSED) {
+      return 'Paused';
+    }
+    if (workingState === WorkingState.MINING) {
+      return livePool ? 'Running' : 'Starting / reconnecting';
+    }
+    return 'Stopped';
+  }, [workingState, livePool]);
+
+  const liveHashrate = hashrateToString(
+    processWorking ? (_.last(hashrateTotals.historyCurrent) || 0) : 0,
+    true,
+  );
+  const accepted = processWorking ? (minerData?.connection?.accepted ?? 0) : 0;
+  const rejected = processWorking ? (minerData?.connection?.rejected ?? 0) : 0;
 
   const batteryColor = React.useMemo(() => {
     const cScale = chroma.scale([
@@ -122,61 +154,69 @@ const MinerScreen = () => {
   }, [powerContext.batteryLevel]);
 
   const statusDot = React.useMemo(() => {
-    if (workingState === WorkingState.MINING) {
-      return tokens.success;
-    }
     if (workingState === WorkingState.PAUSED) {
-      return tokens.accent;
+      return Colors.$backgroundWarningHeavy;
+    }
+    if (workingState === WorkingState.MINING) {
+      return livePool ? tokens.success : tokens.accent;
     }
     return tokens.text.disabled;
-  }, [workingState]);
+  }, [workingState, livePool]);
 
   const statusMeta = [uptimeStr, livePool].filter(Boolean).join(' · ');
   const summaryLine = [
     selectedConfig?.name,
     configuredPoolEndpoint,
-    minerData?.worker_id,
   ].filter(Boolean).join(' · ') || 'No configuration selected';
+
+  const toggleDetails = React.useCallback(() => {
+    setDetailsOpen((open) => {
+      if (!open) {
+        shouldRevealDetails.current = true;
+      }
+      return !open;
+    });
+  }, []);
+
+  const handleContentSizeChange = React.useCallback(() => {
+    if (detailsOpen && shouldRevealDetails.current) {
+      shouldRevealDetails.current = false;
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+    }
+  }, [detailsOpen]);
 
   return (
     <View flex backgroundColor={chrome.screenBG}>
       <ScrollView
+        ref={scrollRef}
         nestedScrollEnabled
         removeClippedSubviews={false}
-        contentContainerStyle={{
-          paddingHorizontal: tokens.spacing.lg,
-          paddingBottom: tokens.spacing.xl,
-        }}
+        onContentSizeChange={handleContentSizeChange}
+        contentContainerStyle={styles.screenContent}
       >
-        <View
-          row
-          centerV
-          style={{
-            minHeight: tokens.touch.min,
-            paddingVertical: tokens.spacing.sm,
-            marginTop: tokens.spacing.sm,
-          }}
-        >
-          <View
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              marginRight: tokens.spacing.sm,
-              backgroundColor: statusDot,
-            }}
-          />
-          <Text
-            numberOfLines={1}
-            style={{
-              ...tokens.type.body,
-              color: chrome.textColor,
-              flex: 1,
-            }}
-          >
-            {statusLabel}
-            {statusMeta ? ` · ${statusMeta}` : ''}
-          </Text>
+        <View style={styles.statusBar}>
+          <View row centerV flex>
+            <View style={[styles.statusDot, { backgroundColor: statusDot }]} />
+            <View flex>
+              <Text style={{ ...tokens.type.section, color: chrome.textColor }}>
+                {statusLabel}
+              </Text>
+              {statusMeta ? (
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    ...tokens.type.caption,
+                    color: chrome.mutedText,
+                    marginTop: 2,
+                  }}
+                >
+                  {statusMeta}
+                </Text>
+              ) : null}
+            </View>
+          </View>
           {powerContext.ready ? (
             <Battery
               percent={powerContext.batteryLevel}
@@ -193,37 +233,25 @@ const MinerScreen = () => {
         </View>
 
         <View
-          style={{
-            backgroundColor: chrome.cardBG,
-            borderRadius: chrome.radius,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: chrome.border,
-            padding: tokens.spacing.lg,
-            marginBottom: tokens.spacing.md,
-          }}
+          style={[
+            styles.card,
+            {
+              backgroundColor: chrome.cardBG,
+              borderColor: chrome.border,
+              borderRadius: chrome.radius,
+            },
+          ]}
         >
           <View row>
-            <View flex marginR-8>
+            <View flex marginR-12>
               <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Hashrate</Text>
-              <Text
-                style={{
-                  ...tokens.type.title,
-                  color: chrome.textColor,
-                  marginTop: tokens.spacing.xs,
-                }}
-              >
+              <Text style={[styles.metricValue, { color: chrome.textColor }]}>
                 {`${liveHashrate}/s`}
               </Text>
             </View>
             <View flex>
               <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Shares</Text>
-              <Text
-                style={{
-                  ...tokens.type.title,
-                  color: chrome.textColor,
-                  marginTop: tokens.spacing.xs,
-                }}
-              >
+              <Text style={[styles.metricValue, { color: chrome.textColor }]}>
                 {`${accepted} / ${rejected}`}
               </Text>
               <Text style={{ ...tokens.type.caption, color: chrome.mutedText, marginTop: 2 }}>
@@ -231,37 +259,26 @@ const MinerScreen = () => {
               </Text>
             </View>
           </View>
+
           <View
             row
             style={{
-              marginTop: tokens.spacing.md,
-              paddingTop: tokens.spacing.md,
+              marginTop: tokens.spacing.lg,
+              paddingTop: tokens.spacing.lg,
               borderTopWidth: StyleSheet.hairlineWidth,
               borderTopColor: chrome.border,
             }}
           >
-            <View flex marginR-8>
+            <View flex marginR-12>
               <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>CPU Temp</Text>
-              <Text
-                style={{
-                  ...tokens.type.section,
-                  color: chrome.textColor,
-                  marginTop: tokens.spacing.xs,
-                }}
-              >
+              <Text style={[styles.secondaryMetric, { color: chrome.textColor }]}>
                 {`${Number.isFinite(CPUTemp) ? CPUTemp.toFixed(1) : '—'} ℃`}
               </Text>
             </View>
             <View flex>
-              <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Algo</Text>
-              <Text
-                style={{
-                  ...tokens.type.section,
-                  color: chrome.textColor,
-                  marginTop: tokens.spacing.xs,
-                }}
-              >
-                {minerData?.algo || '—'}
+              <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Algorithm</Text>
+              <Text style={[styles.secondaryMetric, { color: chrome.textColor }]}>
+                {processWorking ? (minerData?.algo || '—') : '—'}
               </Text>
             </View>
           </View>
@@ -272,111 +289,137 @@ const MinerScreen = () => {
         </View>
 
         <View
-          style={{
-            backgroundColor: chrome.cardBG,
-            borderRadius: chrome.radius,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: chrome.border,
-            marginBottom: tokens.spacing.lg,
-          }}
+          style={[
+            styles.detailsCard,
+            {
+              backgroundColor: chrome.cardBG,
+              borderColor: chrome.border,
+              borderRadius: chrome.radius,
+            },
+          ]}
         >
           <Pressable
-            onPress={() => setDetailsOpen((value) => !value)}
+            onPress={toggleDetails}
             accessibilityRole="button"
             accessibilityLabel="Worker and configuration details"
             accessibilityState={{ expanded: detailsOpen }}
-            hitSlop={4}
             android_ripple={{ color: tokens.border.subtle }}
-            style={{
-              minHeight: tokens.touch.min,
-              paddingHorizontal: tokens.spacing.lg,
-              paddingVertical: tokens.spacing.md,
-              justifyContent: 'center',
-            }}
+            style={styles.detailsHeader}
           >
-            <View row spread centerV>
+            <View flex marginR-12>
               <Text style={{ ...tokens.type.section, color: chrome.textColor }}>
-                Worker & config
+                Worker & configuration
               </Text>
-              <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
+              {!detailsOpen && (
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    ...tokens.type.caption,
+                    color: chrome.mutedText,
+                    marginTop: tokens.spacing.xs,
+                  }}
+                >
+                  {summaryLine}
+                </Text>
+              )}
+            </View>
+            <View
+              style={[
+                styles.showButton,
+                {
+                  borderColor: chrome.border,
+                  backgroundColor: tokens.bg.elevated,
+                },
+              ]}
+            >
+              <Text style={{ ...tokens.type.caption, color: chrome.textColor }}>
                 {detailsOpen ? 'Hide' : 'Show'}
               </Text>
             </View>
-            {!detailsOpen && (
-              <Text
-                numberOfLines={1}
-                style={{
-                  ...tokens.type.caption,
-                  color: chrome.mutedText,
-                  marginTop: tokens.spacing.xs,
-                }}
-              >
-                {summaryLine}
-              </Text>
-            )}
           </Pressable>
 
-          {detailsOpen ? (
+          {detailsOpen && (
             <View
-              style={{
-                paddingHorizontal: tokens.spacing.lg,
-                paddingBottom: tokens.spacing.lg,
-                borderTopWidth: StyleSheet.hairlineWidth,
-                borderTopColor: chrome.border,
-              }}
+              style={[
+                styles.detailsBody,
+                {
+                  borderTopColor: chrome.border,
+                },
+              ]}
             >
-              <View style={{ paddingTop: tokens.spacing.md }}>
-                <DetailRow
-                  label="Configuration"
-                  value={selectedConfig?.name || 'No configuration selected'}
-                />
-                <DetailRow
-                  label="Mode"
-                  value={selectedConfig?.mode || '—'}
-                />
+              <View
+                style={[
+                  styles.configSummary,
+                  {
+                    backgroundColor: tokens.bg.elevated,
+                    borderColor: chrome.border,
+                  },
+                ]}
+              >
+                <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
+                  Selected profile
+                </Text>
+                <Text
+                  numberOfLines={2}
+                  style={{
+                    ...tokens.type.title,
+                    color: chrome.textColor,
+                    marginTop: tokens.spacing.xs,
+                  }}
+                >
+                  {selectedConfig?.name || 'No configuration selected'}
+                </Text>
+              </View>
+
+              <View style={styles.detailTable}>
+                <DetailRow label="Mode" value={selectedConfig?.mode || '—'} />
                 <DetailRow
                   label="Configured pool"
                   value={configuredPoolEndpoint || '—'}
                   mono
                 />
                 <DetailRow
-                  label="Username / wallet"
+                  label="Wallet / user"
                   value={configuredPool?.username || '—'}
                   mono
                 />
-                <DetailRow
-                  label="SSL"
-                  value={configuredSsl}
-                />
+                <DetailRow label="SSL" value={configuredSsl} />
                 <DetailRow
                   label="Active worker"
-                  value={minerData?.worker_id || '—'}
+                  value={processWorking ? (minerData?.worker_id || '—') : '—'}
                 />
                 <DetailRow
                   label="Active pool"
                   value={livePool || '—'}
                   mono
+                  last
                 />
               </View>
 
-              {workingState !== WorkingState.NOT_WORKING && minerData ? (
-                <XMRigView
-                  minerData={minerData}
-                  hashrateHistory={hashrateTotals}
-                />
+              {processWorking && minerData ? (
+                <View style={{ marginTop: tokens.spacing.md }}>
+                  <XMRigView
+                    minerData={minerData}
+                    hashrateHistory={hashrateTotals}
+                  />
+                </View>
               ) : (
-                <Text
-                  style={{
-                    ...tokens.type.caption,
-                    color: chrome.mutedText,
-                    paddingTop: tokens.spacing.sm,
-                  }}
+                <View
+                  style={[
+                    styles.infoBanner,
+                    {
+                      backgroundColor: tokens.bg.elevated,
+                      borderColor: chrome.border,
+                    },
+                  ]}
                 >
-                  Live miner statistics appear after mining starts.
-                </Text>
+                  <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
+                    Live worker statistics will appear here after the miner connects.
+                  </Text>
+                </View>
               )}
             </View>
-          ) : null}
+          )}
         </View>
       </ScrollView>
     </View>
@@ -384,8 +427,81 @@ const MinerScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  screenContent: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingBottom: 56,
+  },
+  statusBar: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: tokens.spacing.sm,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: tokens.spacing.md,
+  },
+  card: {
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: tokens.spacing.lg,
+    marginBottom: tokens.spacing.md,
+  },
+  metricValue: {
+    ...tokens.type.title,
+    fontSize: 22,
+    marginTop: tokens.spacing.xs,
+  },
+  secondaryMetric: {
+    ...tokens.type.section,
+    fontSize: 16,
+    marginTop: tokens.spacing.xs,
+  },
+  detailsCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: tokens.spacing.lg,
+    overflow: 'hidden',
+  },
+  detailsHeader: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
+  },
+  showButton: {
+    minWidth: 64,
+    minHeight: 36,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: tokens.spacing.md,
+  },
+  detailsBody: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    padding: tokens.spacing.lg,
+  },
+  configSummary: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.sm,
+    padding: tokens.spacing.md,
+    marginBottom: tokens.spacing.md,
+  },
+  detailTable: {
+    marginBottom: tokens.spacing.sm,
+  },
   detailRow: {
-    paddingBottom: tokens.spacing.md,
+    minHeight: 48,
+    alignItems: 'center',
+    paddingVertical: tokens.spacing.sm,
+  },
+  infoBanner: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.sm,
+    padding: tokens.spacing.md,
+    marginTop: tokens.spacing.sm,
   },
 });
 
