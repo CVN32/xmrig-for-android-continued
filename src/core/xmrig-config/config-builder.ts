@@ -87,6 +87,13 @@ export default class ConfigBuilder {
         randomx: {
           mode: asSimpleConfig.properties?.cpu?.random_x_mode,
         },
+        dns: {
+          // Android carriers/Wi-Fi frequently publish AAAA records even when
+          // the active network has no usable IPv6 route. Prefer IPv4 for simple
+          // profiles so XMRig does not get stuck on "network is unreachable".
+          ipv6: false,
+          ttl: 30,
+        },
       });
       pConfig.setProps({
         cpu: {
