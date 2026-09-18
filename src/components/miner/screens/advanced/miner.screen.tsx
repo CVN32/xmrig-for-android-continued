@@ -461,7 +461,6 @@ const styles = StyleSheet.create({
   detailsCard: {
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: tokens.spacing.lg,
-    overflow: 'hidden',
   },
   detailsHeader: {
     minHeight: 64,
