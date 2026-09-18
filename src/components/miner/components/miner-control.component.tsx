@@ -22,16 +22,16 @@ import { WorkingState } from '../../../core/session-data/session-data.interface'
 import { SettingsActionType, SettingsContext } from '../../../core/settings';
 import { ConfigurationMode } from '../../../core/settings/settings.interface';
 import { CHROME } from '../../../core/theme/chrome';
+import { tokens } from '../../../core/theme/tokens';
 import AddConfigurationsModal from '../../settings/modals/add-configuration.modal';
-
-const TOUCH_MIN = 48;
 
 const pickerValueToId = (value: any): string | undefined => {
   if (typeof value === 'string') {
     return value || undefined;
   }
-  if (value && typeof value.value === 'string') {
-    return value.value || undefined;
+  if (value && typeof value === 'object') {
+    const nested = value.value ?? value.id;
+    return typeof nested === 'string' && nested ? nested : undefined;
   }
   return undefined;
 };
@@ -92,10 +92,6 @@ export const MinerControl: React.FC<ViewProps> = () => {
         mode,
       },
     });
-    settingsDispatcher({
-      type: SettingsActionType.SET_SELECTED_CONFIGURAION,
-      value: id,
-    });
     setShowAddModal(false);
     toaster({
       message: `Added '${trimmed}'`,
@@ -143,7 +139,7 @@ export const MinerControl: React.FC<ViewProps> = () => {
             <Button
               size={Button.sizes.large}
               label="Add configuration"
-              style={{ minHeight: TOUCH_MIN }}
+              style={{ minHeight: tokens.touch.min }}
               iconSource={Assets.icons.clipboard}
               iconStyle={{
                 width: 14,
@@ -172,7 +168,7 @@ export const MinerControl: React.FC<ViewProps> = () => {
               showSearch
               searchPlaceholder="Search configurations"
               onChange={handleSelectConfiguration}
-              style={{ ...Typography.text70, color: Colors.$textDefault, minHeight: TOUCH_MIN }}
+              style={{ ...Typography.text70, color: Colors.$textDefault, minHeight: tokens.touch.min }}
               floatingPlaceholderStyle={{ ...Typography.text80, color: Colors.$textNeutral }}
               migrate
               migrateTextField
@@ -191,14 +187,14 @@ export const MinerControl: React.FC<ViewProps> = () => {
                 outline
                 marginR-8
                 size={Button.sizes.large}
-                style={{ minHeight: TOUCH_MIN }}
+                style={{ minHeight: tokens.touch.min }}
                 label="Add"
                 onPress={() => setShowAddModal(true)}
               />
               <Button
                 flex
                 size={Button.sizes.large}
-                style={{ minHeight: TOUCH_MIN }}
+                style={{ minHeight: tokens.touch.min }}
                 onPress={handleStart}
                 label="Start"
                 iconSource={Assets.icons.start}
@@ -218,7 +214,7 @@ export const MinerControl: React.FC<ViewProps> = () => {
           <View padding-12>
             <Button
               size={Button.sizes.large}
-              style={{ minHeight: TOUCH_MIN }}
+              style={{ minHeight: tokens.touch.min }}
               backgroundColor={Colors.$backgroundDangerHeavy}
               onPress={handleStop}
               label="Stop"

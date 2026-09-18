@@ -4,6 +4,7 @@ export const tokens = {
     app: '#0F1115',
     surface: '#171A21',
     elevated: '#1E2330',
+    overlay: 'rgba(0, 0, 0, 0.72)',
   },
   text: {
     primary: '#E8EAED',
@@ -22,6 +23,14 @@ export const tokens = {
     md: 12,
     lg: 16,
     xl: 24,
+  },
+  radius: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+  },
+  touch: {
+    min: 48,
   },
   type: {
     title: { fontSize: 18, fontWeight: '600' as const },

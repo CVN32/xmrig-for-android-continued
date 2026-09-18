@@ -14,6 +14,10 @@ import { hashrateToString } from 'hashrate';
 import { SessionDataContext } from '../../../../core/session-data/session-data.context';
 import { WorkingState } from '../../../../core/session-data/session-data.interface';
 import { SettingsContext } from '../../../../core/settings';
+import {
+  ConfigurationMode,
+  ISimpleConfiguration,
+} from '../../../../core/settings/settings.interface';
 import { XMRigView } from '../../containers/xmrig-view';
 import { MinerControl } from '../../components/miner-control.component';
 import { PowerContext } from '../../../../core/power/power.context';
@@ -36,6 +40,38 @@ const formatUptime = (seconds?: number): string | null => {
   return `${s}s`;
 };
 
+type DetailRowProps = {
+  label: string;
+  value: string;
+  mono?: boolean;
+};
+
+const DetailRow: React.FC<DetailRowProps> = ({ label, value, mono }) => {
+  const chrome = CHROME.dark;
+  return (
+    <View style={styles.detailRow}>
+      <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>
+        {label}
+      </Text>
+      <Text
+        selectable
+        numberOfLines={2}
+        style={{
+          ...(mono ? tokens.type.mono : tokens.type.body),
+          color: chrome.textColor,
+          marginTop: tokens.spacing.xs,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+};
+
+DetailRow.defaultProps = {
+  mono: false,
+};
+
 const MinerScreen = () => {
   const chrome = CHROME[useColorScheme() === 'dark' ? 'dark' : 'light'];
   const {
@@ -56,10 +92,21 @@ const MinerScreen = () => {
   }, [workingState]);
 
   const uptimeStr = formatUptime(minerData?.connection?.uptime ?? minerData?.uptime);
-  const pool = minerData?.connection?.pool;
+  const livePool = minerData?.connection?.pool;
   const selectedConfig = settings.configurations.find(
-    (c) => c.id === settings.selectedConfiguration,
+    (configuration) => configuration.id === settings.selectedConfiguration,
   );
+  const simpleConfig = selectedConfig?.mode === ConfigurationMode.SIMPLE
+    ? selectedConfig as ISimpleConfiguration
+    : undefined;
+  const configuredPool = simpleConfig?.properties?.pool;
+  const configuredPoolEndpoint = configuredPool?.hostname
+    ? `${configuredPool.hostname}${configuredPool.port ? `:${configuredPool.port}` : ''}`
+    : null;
+  let configuredSsl = '—';
+  if (configuredPool) {
+    configuredSsl = configuredPool.sslEnabled ? 'Enabled' : 'Disabled';
+  }
 
   const liveHashrate = hashrateToString(_.last(hashrateTotals.historyCurrent) || 0, true);
   const accepted = minerData?.connection?.accepted ?? 0;
@@ -84,15 +131,18 @@ const MinerScreen = () => {
     return tokens.text.disabled;
   }, [workingState]);
 
-  const statusMeta = [uptimeStr, pool].filter(Boolean).join(' · ');
-  const summaryLine = [selectedConfig?.name, minerData?.worker_id]
-    .filter(Boolean)
-    .join(' · ') || 'No configuration selected';
+  const statusMeta = [uptimeStr, livePool].filter(Boolean).join(' · ');
+  const summaryLine = [
+    selectedConfig?.name,
+    configuredPoolEndpoint,
+    minerData?.worker_id,
+  ].filter(Boolean).join(' · ') || 'No configuration selected';
 
   return (
     <View flex backgroundColor={chrome.screenBG}>
       <ScrollView
         nestedScrollEnabled
+        removeClippedSubviews={false}
         contentContainerStyle={{
           paddingHorizontal: tokens.spacing.lg,
           paddingBottom: tokens.spacing.xl,
@@ -102,7 +152,7 @@ const MinerScreen = () => {
           row
           centerV
           style={{
-            minHeight: 48,
+            minHeight: tokens.touch.min,
             paddingVertical: tokens.spacing.sm,
             marginTop: tokens.spacing.sm,
           }}
@@ -228,14 +278,17 @@ const MinerScreen = () => {
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: chrome.border,
             marginBottom: tokens.spacing.lg,
-            overflow: 'hidden',
           }}
         >
           <Pressable
-            onPress={() => setDetailsOpen((v) => !v)}
+            onPress={() => setDetailsOpen((value) => !value)}
             accessibilityRole="button"
+            accessibilityLabel="Worker and configuration details"
+            accessibilityState={{ expanded: detailsOpen }}
+            hitSlop={4}
+            android_ripple={{ color: tokens.border.subtle }}
             style={{
-              minHeight: 48,
+              minHeight: tokens.touch.min,
               paddingHorizontal: tokens.spacing.lg,
               paddingVertical: tokens.spacing.md,
               justifyContent: 'center',
@@ -262,58 +315,78 @@ const MinerScreen = () => {
               </Text>
             )}
           </Pressable>
-          {detailsOpen && (
+
+          {detailsOpen ? (
             <View
               style={{
                 paddingHorizontal: tokens.spacing.lg,
-                paddingBottom: tokens.spacing.md,
+                paddingBottom: tokens.spacing.lg,
                 borderTopWidth: StyleSheet.hairlineWidth,
                 borderTopColor: chrome.border,
               }}
             >
-              <View style={{ marginTop: tokens.spacing.md }}>
-                <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Configuration</Text>
-                <Text
-                  style={{
-                    ...tokens.type.body,
-                    color: chrome.textColor,
-                    marginBottom: tokens.spacing.sm,
-                  }}
-                >
-                  {selectedConfig?.name || '—'}
-                </Text>
-                <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Worker</Text>
-                <Text
-                  style={{
-                    ...tokens.type.body,
-                    color: chrome.textColor,
-                    marginBottom: tokens.spacing.sm,
-                  }}
-                >
-                  {minerData?.worker_id || '—'}
-                </Text>
-                <Text style={{ ...tokens.type.caption, color: chrome.mutedText }}>Pool</Text>
-                <Text
-                  style={{
-                    ...tokens.type.body,
-                    color: chrome.textColor,
-                    marginBottom: tokens.spacing.sm,
-                  }}
-                >
-                  {pool || '—'}
-                </Text>
+              <View style={{ paddingTop: tokens.spacing.md }}>
+                <DetailRow
+                  label="Configuration"
+                  value={selectedConfig?.name || 'No configuration selected'}
+                />
+                <DetailRow
+                  label="Mode"
+                  value={selectedConfig?.mode || '—'}
+                />
+                <DetailRow
+                  label="Configured pool"
+                  value={configuredPoolEndpoint || '—'}
+                  mono
+                />
+                <DetailRow
+                  label="Username / wallet"
+                  value={configuredPool?.username || '—'}
+                  mono
+                />
+                <DetailRow
+                  label="SSL"
+                  value={configuredSsl}
+                />
+                <DetailRow
+                  label="Active worker"
+                  value={minerData?.worker_id || '—'}
+                />
+                <DetailRow
+                  label="Active pool"
+                  value={livePool || '—'}
+                  mono
+                />
               </View>
-              <XMRigView
-                workingState={workingState}
-                minerData={minerData}
-                hashrateHistory={hashrateTotals}
-              />
+
+              {workingState !== WorkingState.NOT_WORKING && minerData ? (
+                <XMRigView
+                  minerData={minerData}
+                  hashrateHistory={hashrateTotals}
+                />
+              ) : (
+                <Text
+                  style={{
+                    ...tokens.type.caption,
+                    color: chrome.mutedText,
+                    paddingTop: tokens.spacing.sm,
+                  }}
+                >
+                  Live miner statistics appear after mining starts.
+                </Text>
+              )}
             </View>
-          )}
+          ) : null}
         </View>
       </ScrollView>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  detailRow: {
+    paddingBottom: tokens.spacing.md,
+  },
+});
 
 export default MinerScreen;
