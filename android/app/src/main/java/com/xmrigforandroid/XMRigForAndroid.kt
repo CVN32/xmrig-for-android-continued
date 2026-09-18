@@ -37,6 +37,8 @@ import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import java.io.File
 import java.lang.Exception
+import java.net.Inet4Address
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.Locale
@@ -186,6 +188,12 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
             .emit(eventName, payload)
     }
 
+    private fun emitMinerStatus() {
+        val payload = Arguments.createMap()
+        payload.putBoolean("isWorking", isMining)
+        emit("onStatusChange", payload)
+    }
+
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onMessageEvent(event: StdoutEvent) {
         val payload = Arguments.createMap()
@@ -202,9 +210,7 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
             Log.w(name, "Unable to start summary updates", e)
         }
 
-        val payload = Arguments.createMap()
-        payload.putBoolean("isWorking", true)
-        emit("onStatusChange", payload)
+        emitMinerStatus()
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
@@ -216,9 +222,7 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
             Log.w(name, "Unable to stop summary updates", e)
         }
 
-        val payload = Arguments.createMap()
-        payload.putBoolean("isWorking", false)
-        emit("onStatusChange", payload)
+        emitMinerStatus()
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
@@ -299,6 +303,11 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
     }
 
     @ReactMethod
+    fun getMinerStatus(promise: Promise) {
+        promise.resolve(isMining)
+    }
+
+    @ReactMethod
     fun probeTcp(host: String, port: Int, timeoutMs: Int, promise: Promise) {
         if (host.isBlank() || port !in 1..65535) {
             promise.reject("probeTcp", "Invalid host or port")
@@ -309,9 +318,41 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
         Thread {
             val startedAt = SystemClock.elapsedRealtime()
             try {
-                Socket().use { socket ->
-                    socket.connect(InetSocketAddress(host, port), timeout)
+                val resolved = InetAddress.getAllByName(host).toList()
+                val ipv4 = resolved.filterIsInstance<Inet4Address>()
+                val candidates = if (ipv4.isNotEmpty()) ipv4 else resolved
+                if (candidates.isEmpty()) {
+                    throw IllegalStateException("No address resolved for $host")
                 }
+
+                var connected = false
+                var lastError: Exception? = null
+                val deadline = startedAt + timeout
+
+                for (address in candidates) {
+                    val remaining = (deadline - SystemClock.elapsedRealtime())
+                        .coerceAtLeast(250L)
+                        .coerceAtMost(timeout.toLong())
+                        .toInt()
+                    try {
+                        Socket().use { socket ->
+                            socket.connect(InetSocketAddress(address, port), remaining)
+                        }
+                        connected = true
+                        break
+                    } catch (e: Exception) {
+                        lastError = e
+                    }
+
+                    if (SystemClock.elapsedRealtime() >= deadline) {
+                        break
+                    }
+                }
+
+                if (!connected) {
+                    throw lastError ?: IllegalStateException("Unable to connect to $host:$port")
+                }
+
                 val payload = Arguments.createMap()
                 payload.putBoolean("online", true)
                 payload.putDouble(
@@ -394,6 +435,10 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
             if (batteryStatus != null) {
                 publishBatteryIntent(batteryStatus)
             }
+        } else if (eventName == "onStatusChange") {
+            // NativeEventEmitter listeners can be recreated when tabs/screens mount.
+            // Publish the current process state so JS cannot remain stuck on "Stopped".
+            emitMinerStatus()
         }
     }
 
