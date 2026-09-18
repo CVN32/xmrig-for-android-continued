@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import {
   View,
   Text,
@@ -16,13 +16,15 @@ import Clipboard from '@react-native-community/clipboard';
 import { XMRigLogView } from '../../containers/xmrig-log';
 import { ILoggerLine, LoggerActionType, LoggerContext } from '../../../../core/logger';
 import { useToaster } from '../../../../core/hooks/use-toaster/use-toaster.hook';
+import { CHROME } from '../../../../core/theme/chrome';
+import { tokens } from '../../../../core/theme/tokens';
 
 const actionsButtonDefault: ButtonProps = {
   label: 'Menu',
   iconSource: Assets.icons.barsOpen,
   iconStyle: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     margin: 0,
     tintColor: Colors.$iconDefaultLight,
   },
@@ -31,6 +33,7 @@ const actionsButtonDefault: ButtonProps = {
 const LogScreen:React.FC<ViewProps> = () => {
   const { loggerState, loggerDispatcher } = React.useContext(LoggerContext);
   const toaster = useToaster();
+  const chrome = CHROME.dark;
 
   const copyToClipboard = () => {
     Clipboard.setString(
@@ -55,6 +58,7 @@ const LogScreen:React.FC<ViewProps> = () => {
 
   const [actionsVisible, setActionVisible] = React.useState<boolean>(false);
   const [actionsButtonProps, setActionButtonProps] = React.useState<ButtonProps>({});
+
   React.useEffect(() => {
     if (actionsVisible) {
       setActionButtonProps(actionsButtonDefault);
@@ -72,38 +76,44 @@ const LogScreen:React.FC<ViewProps> = () => {
   }, [actionsVisible]);
 
   return (
-    <View bg-screenBG flex>
-      <View
-        row
-        spread
-        paddingV-10
-        paddingH-10
-        centerV
-      >
-        <View row centerV>
-          <Text text60>Miner Log</Text>
-          <Text text80 marginL-10>(last 100 rows)</Text>
+    <View flex backgroundColor={chrome.screenBG}>
+      <View style={styles.header}>
+        <View flex>
+          <Text style={{ ...tokens.type.title, color: chrome.textColor }}>
+            Miner Log
+          </Text>
+          <Text
+            style={{
+              ...tokens.type.caption,
+              color: chrome.mutedText,
+              marginTop: tokens.spacing.xs,
+            }}
+          >
+            Showing the latest {Math.min(loggerState.length, 100)} rows
+          </Text>
         </View>
         <Button
           size={Button.sizes.small}
           onPress={() => setActionVisible(!actionsVisible)}
           animateLayout
+          backgroundColor={tokens.bg.elevated}
           // eslint-disable-next-line react/jsx-props-no-spreading
           {...actionsButtonProps}
         />
       </View>
-      <View
-        flex
-        paddingH-10
-        paddingB-10
-        useSafeArea
-      >
-        <ScrollView nestedScrollEnabled contentContainerStyle={{ flexGrow: 1 }}>
+
+      <View flex style={styles.logFrame}>
+        <ScrollView
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+          contentContainerStyle={styles.logScrollContent}
+        >
           <XMRigLogView data={loggerState} />
         </ScrollView>
       </View>
+
       <FloatingButton
-        duration={500}
+        duration={250}
         visible={actionsVisible}
         button={{
           size: Button.sizes.large,
@@ -137,5 +147,22 @@ const LogScreen:React.FC<ViewProps> = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  header: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
+  },
+  logFrame: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingBottom: tokens.spacing.lg,
+  },
+  logScrollContent: {
+    flexGrow: 1,
+  },
+});
 
 export default LogScreen;
