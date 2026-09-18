@@ -81,6 +81,14 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
                             EventBus.getDefault().post(MinerStopEvent())
                         }
                     }
+
+                    if (currentMinerStatus()) {
+                        try {
+                            xmrigAPIService?.startSummaryUpdates()
+                        } catch (e: RemoteException) {
+                            Log.w(name, "Unable to restore summary updates", e)
+                        }
+                    }
                     emitMinerStatus()
                 }
                 XMRigAPIService::class.java.name -> {
