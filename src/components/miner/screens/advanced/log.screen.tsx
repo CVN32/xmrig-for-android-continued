@@ -89,7 +89,11 @@ const LogScreen:React.FC<ViewProps> = () => {
               marginTop: tokens.spacing.xs,
             }}
           >
-            Showing the latest {Math.min(loggerState.length, 100)} rows
+            Showing the latest
+            {' '}
+            {Math.min(loggerState.length, 100)}
+            {' '}
+            rows
           </Text>
         </View>
         <Button
