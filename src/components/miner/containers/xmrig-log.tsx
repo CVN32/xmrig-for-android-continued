@@ -5,15 +5,16 @@ import { View, ViewProps } from 'react-native-ui-lib';
 import { AnsiComponent } from 'react-native-ansi-view';
 import _ from 'lodash';
 import { ILoggerLine } from '../../../core/logger';
+import { tokens } from '../../../core/theme/tokens';
 
 type LogViewProps = ViewProps & {
-    data: ILoggerLine[];
+  data: ILoggerLine[];
 }
 
 export const XMRigLogView:React.FC<LogViewProps> = ({
   data,
 }) => (
-  <View flex-1 paddingV-10 bg-black br40>
+  <View style={styles.logSurface}>
     {_.takeRight(data, 100).map((value, index) => (
       <AnsiComponent
         textStyle={styles.logTextDefault}
@@ -26,13 +27,25 @@ export const XMRigLogView:React.FC<LogViewProps> = ({
 );
 
 const styles = StyleSheet.create({
+  logSurface: {
+    flexGrow: 1,
+    backgroundColor: '#090B0F',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.border.subtle,
+    borderRadius: tokens.radius.md,
+    paddingVertical: tokens.spacing.sm,
+    overflow: 'hidden',
+  },
   logContainer: {
-    backgroundColor: 'black',
+    backgroundColor: '#090B0F',
+    paddingHorizontal: tokens.spacing.sm,
     paddingVertical: 2,
     borderRadius: 0,
   },
   logTextDefault: {
     color: 'white',
-    fontSize: 13,
+    fontFamily: 'monospace',
+    fontSize: 12,
+    lineHeight: 17,
   },
 });

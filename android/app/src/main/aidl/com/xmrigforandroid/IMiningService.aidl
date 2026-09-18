@@ -8,4 +8,5 @@ interface IMiningService {
      */
     void startMiner(String config, String xmrigFork);
     void stopMiner();
+    boolean isMinerRunning();
 }

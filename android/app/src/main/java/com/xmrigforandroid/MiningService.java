@@ -98,6 +98,11 @@ public class MiningService extends Service {
         public void stopMiner() {
             stopMining();
         }
+
+        @Override
+        public boolean isMinerRunning() {
+            return isMiningProcessAlive();
+        }
     };
 
     @Override
@@ -123,6 +128,19 @@ public class MiningService extends Service {
     private void releaseWakeLock() {
         if (wakeLock != null && wakeLock.isHeld()) {
             wakeLock.release();
+        }
+    }
+
+    private synchronized boolean isMiningProcessAlive() {
+        if (process == null) {
+            return false;
+        }
+
+        try {
+            process.exitValue();
+            return false;
+        } catch (IllegalThreadStateException ignored) {
+            return true;
         }
     }
 
