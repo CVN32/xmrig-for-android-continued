@@ -97,6 +97,10 @@ export const config = {
     "ciphersuites": null,
     "dhparam": null,
   },
+  "dns": {
+    "ipv6": false,
+    "ttl": 30,
+  },
   "user-agent": null,
   "verbose": 1,
   "watch": true,
