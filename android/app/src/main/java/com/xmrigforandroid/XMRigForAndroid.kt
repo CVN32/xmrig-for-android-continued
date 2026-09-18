@@ -81,10 +81,11 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
                             EventBus.getDefault().post(MinerStopEvent())
                         }
                     }
+                    emitMinerStatus()
                 }
                 XMRigAPIService::class.java.name -> {
                     xmrigAPIService = IXMRigAPIService.Stub.asInterface(service)
-                    if (isMining) {
+                    if (currentMinerStatus()) {
                         try {
                             xmrigAPIService?.startSummaryUpdates()
                         } catch (e: RemoteException) {
@@ -188,9 +189,24 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
             .emit(eventName, payload)
     }
 
+    private fun currentMinerStatus(): Boolean {
+        val queued = pendingStart != null
+        val service = miningService
+        if (service != null) {
+            try {
+                val running = service.isMinerRunning()
+                isMining = running
+                return running || queued
+            } catch (e: RemoteException) {
+                Log.w(name, "Unable to query miner process state", e)
+            }
+        }
+        return isMining || queued
+    }
+
     private fun emitMinerStatus() {
         val payload = Arguments.createMap()
-        payload.putBoolean("isWorking", isMining)
+        payload.putBoolean("isWorking", currentMinerStatus())
         emit("onStatusChange", payload)
     }
 
@@ -304,7 +320,7 @@ class XMRigForAndroid(context: ReactApplicationContext) : ReactContextBaseJavaMo
 
     @ReactMethod
     fun getMinerStatus(promise: Promise) {
-        promise.resolve(isMining)
+        promise.resolve(currentMinerStatus())
     }
 
     @ReactMethod
